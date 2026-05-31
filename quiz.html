@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Uji Kemampuan - BintangBelajar</title>
+    <title>Bermain Kuis Calistung - BintangBelajar</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -30,7 +30,7 @@
     <!-- Custom JS -->
     <script src="assets/js/main.js"></script>
 </head>
-<body class="bg-slate-50 min-h-screen flex flex-col"
+<body class="bg-gradient-to-b from-amber-50 via-white to-sky-50 min-h-screen flex flex-col font-outfit"
       x-data="{
           lessonId: '',
           quiz: null,
@@ -42,9 +42,19 @@
           finished: false,
           loading: true,
 
+          // Canvas Tracing state
+          canvas: null,
+          ctx: null,
+          drawing: false,
+          brushColor: '#4f46e5',
+          brushSize: 12,
+
+          // Spelling states
+          spelledSegments: [], // user clicked letters or syllables
+
           async init() {
               const params = new URLSearchParams(window.location.search);
-              this.lessonId = params.get('lesson_id') || 'l-sd-1';
+              this.lessonId = params.get('lesson_id') || 'l-membaca-1';
               
               setTimeout(async () => {
                   if (!Alpine.store('auth').user) {
@@ -53,6 +63,12 @@
                   }
                   await this.fetchQuiz();
               }, 400);
+
+              // Watch for changes in current question to speak out loud automatically!
+              this.$watch('currentIdx', () => {
+                  this.resetInteractiveElements();
+                  this.speakCurrentQuestion();
+              });
           },
 
           async fetchQuiz() {
@@ -66,7 +82,6 @@
                       this.questions = data.quiz.questions;
                   }
               } catch (e) {
-                  // Fallbacks simulation
                   console.log('Loading local quiz details fallback...');
                   const localQuizzes = JSON.parse(localStorage.getItem('bb_quizzes') || '[]');
                   const foundQuiz = localQuizzes.find(q => q.lesson_id === this.lessonId);
@@ -78,46 +93,128 @@
                       };
                       this.questions = JSON.parse(foundQuiz.questions_json);
                   } else {
-                      const fallbacks = {
-                          'l-cal-1': {
-                              id: 'q-cal-1',
-                              title: 'Kuis Seru Huruf Vokal',
-                              questions: [
-                                  { question: 'Manakah di bawah ini yang merupakan huruf vokal?', options: ['B', 'C', 'A', 'D'], answer: 2 },
-                                  { question: 'Hewan APEL diawali dengan huruf vokal apa?', options: ['I', 'E', 'O', 'A'], answer: 3 }
-                              ]
-                          },
-                          'l-sd-1': {
-                              id: 'q-sd-1',
-                              title: 'Uji Pemahaman Pecahan',
-                              questions: [
-                                  { question: 'Jika sebuah lingkaran dibagi menjadi 4 bagian sama besar, dan 1 bagian diarsir, berapa pecahannya?', options: ['1/2', '1/4', '3/4', '4/1'], answer: 1 },
-                                  { question: 'Pecahan 2/4 senilai dengan pecahan...', options: ['1/2', '1/3', '3/4', '2/5'], answer: 0 }
-                              ]
-                          },
-                          'l-mat-1': {
-                              id: 'q-mat-1',
-                              title: 'Kuis Aljabar Kilat',
-                              questions: [
-                                  { question: 'Jika 3x + 5 = 20, berapakah nilai x?', options: ['3', '4', '5', '6'], answer: 2 },
-                                  { question: 'Jika x + y = 10 dan x - y = 2, berapakah nilai x?', options: ['4', '5', '6', '8'], answer: 2 }
-                              ]
-                          },
-                          'l-smp-1': {
-                              id: 'q-smp-1',
-                              title: 'Kuis Tata Surya Terluas',
-                              questions: [
-                                  { question: 'Manakah planet terbesar dalam tata surya kita?', options: ['Bumi', 'Mars', 'Jupiter', 'Saturnus'], answer: 2 },
-                                  { question: 'Planet yang dijuluki sebagai Planet Merah adalah...', options: ['Venus', 'Mars', 'Merkurius', 'Neptunus'], answer: 1 }
-                              ]
-                          }
+                      // Fallback seed
+                      const fallbackDb = {
+                          'l-membaca-1': [
+                              { type: 'voice_choice', question: 'Manakah di bawah ini yang merupakan huruf vokal A?', options: ['Huruf B', 'Huruf C', 'Huruf A 🌟', 'Huruf D'], answer: 2 },
+                              { type: 'voice_choice', question: 'Gambar APEL 🍎 diawali dengan huruf vokal apa?', options: ['Huruf I', 'Huruf E', 'Huruf O', 'Huruf A 🍎'], answer: 3 },
+                              { type: 'voice_choice', question: 'Kata IKAN 🐟 memiliki huruf vokal pertama yaitu?', options: ['Huruf I 🐟', 'Huruf U', 'Huruf E', 'Huruf O'], answer: 0 }
+                          ],
+                          'l-berhitung-1': [
+                              { type: 'count', question: 'Ada berapa buah apel merah lezat di dalam keranjang? 🍎', icon: '🍎', count: 3, options: ['2 Apel', '3 Apel 🍎', '4 Apel', '5 Apel'], answer: 1 }
+                          ]
                       };
-                      const current = fallbacks[this.lessonId] || fallbacks['l-sd-1'];
-                      this.quiz = current;
-                      this.questions = current.questions;
+                      const found = fallbackDb[this.lessonId] || fallbackDb['l-membaca-1'];
+                      this.quiz = { id: 'q-' + this.lessonId, title: 'Petualangan Bermain Calistung' };
+                      this.questions = found;
                   }
               } finally {
                   this.loading = false;
+                  this.resetInteractiveElements();
+                  this.speakCurrentQuestion();
+              }
+          },
+
+          speak(text) {
+              if ('speechSynthesis' in window) {
+                  window.speechSynthesis.cancel();
+                  const utterance = new SpeechSynthesisUtterance(text);
+                  utterance.lang = 'id-ID';
+                  utterance.rate = 0.85;
+                  utterance.pitch = 1.3;
+                  window.speechSynthesis.speak(utterance);
+              }
+          },
+
+          speakCurrentQuestion() {
+              if (this.questions.length > 0) {
+                  const q = this.questions[this.currentIdx];
+                  // Let's strip out emojis for clean vocal synthesis
+                  const cleanText = q.question.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDC00-\uDFFF]/g, '');
+                  setTimeout(() => {
+                      this.speak(cleanText);
+                  }, 500);
+              }
+          },
+
+          resetInteractiveElements() {
+              this.spelledSegments = [];
+              this.drawing = false;
+              
+              const currentQ = this.questions[this.currentIdx];
+              if (currentQ && currentQ.type === 'trace') {
+                  setTimeout(() => {
+                      this.initCanvas();
+                  }, 300);
+              }
+          },
+
+          // Canvas Tracing Logic
+          initCanvas() {
+              const canvasRef = this.$refs.quizCanvas;
+              if (!canvasRef) return;
+              this.canvas = canvasRef;
+              this.ctx = this.canvas.getContext('2d');
+              
+              // Set appropriate dimensions
+              this.canvas.width = this.canvas.parentElement.clientWidth;
+              this.canvas.height = 240;
+              
+              this.ctx.lineCap = 'round';
+              this.ctx.lineJoin = 'round';
+              this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+          },
+
+          startDraw(e) {
+              this.drawing = true;
+              this.ctx.beginPath();
+              const rect = this.canvas.getBoundingClientRect();
+              const x = (e.clientX || e.touches[0].clientX) - rect.left;
+              const y = (e.clientY || e.touches[0].clientY) - rect.top;
+              this.ctx.moveTo(x, y);
+          },
+
+          draw(e) {
+              if (!this.drawing) return;
+              e.preventDefault();
+              const rect = this.canvas.getBoundingClientRect();
+              const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+              const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+              
+              this.ctx.lineTo(x, y);
+              this.ctx.strokeStyle = this.brushColor;
+              this.ctx.lineWidth = this.brushSize;
+              this.ctx.stroke();
+          },
+
+          stopDraw() {
+              this.drawing = false;
+          },
+
+          clearCanvas() {
+              if (this.ctx) {
+                  this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                  this.speak('Kanvas bersih!');
+              }
+          },
+
+          // Syllables Spelling Logic
+          clickSpellingOption(seg) {
+              if (this.answered) return;
+              this.speak(seg);
+              this.spelledSegments.push(seg);
+              
+              const currentQ = this.questions[this.currentIdx];
+              const resultWord = this.spelledSegments.join('');
+              
+              if (resultWord.toUpperCase() === currentQ.word.toUpperCase()) {
+                  // Spelled correctly! Trigger answer success.
+                  this.submitAnswer(currentQ.answer);
+              } else if (resultWord.length >= currentQ.word.length) {
+                  // Spelled incorrectly! Reset with a cute vocal warning
+                  this.speak('Ups, coba eja sekali lagi ya!');
+                  Alpine.store('toast').warning('Coba susun lagi ya...');
+                  this.spelledSegments = [];
               }
           },
 
@@ -126,11 +223,16 @@
               this.selectedAnswer = optIdx;
               this.answered = true;
               
-              if (optIdx === this.questions[this.currentIdx].answer) {
+              const currentQ = this.questions[this.currentIdx];
+              
+              if (optIdx === currentQ.answer) {
                   this.correctAnswersCount++;
-                  Alpine.store('toast').success('Jawabanmu BENAR! +10 Bintang 🌟');
+                  this.speak('Hebat! Jawabanmu benar sekali!');
+                  Alpine.store('toast').success('Hebat! Kamu Benar! 🎉');
+                  window.triggerConfetti();
               } else {
-                  Alpine.store('toast').error('Ups! Jawaban kurang tepat. Coba lagi nanti ya.');
+                  this.speak('Salah, coba lagi nanti ya!');
+                  Alpine.store('toast').error('Kurang tepat, terus mencoba ya!');
               }
           },
 
@@ -149,9 +251,12 @@
               const finalScore = Math.round((this.correctAnswersCount / this.questions.length) * 100);
               
               if (finalScore >= 80) {
+                  this.speak(`Luar biasa! Kamu mendapatkan nilai ${finalScore} dan mendapat bintang kejutan!`);
                   setTimeout(() => {
                       window.triggerConfetti();
                   }, 200);
+              } else {
+                  this.speak(`Bagus sekali! Nilai kamu adalah ${finalScore}. Terus berlatih agar mendapat bintang ya!`);
               }
               
               try {
@@ -169,7 +274,7 @@
                       })
                   });
               } catch (e) {
-                  console.log('Saved offline score simulator');
+                  console.log('Saved offline score');
               }
           },
 
@@ -179,6 +284,8 @@
               this.correctAnswersCount = 0;
               this.answered = false;
               this.finished = false;
+              this.resetInteractiveElements();
+              this.speakCurrentQuestion();
           }
       }">
 
@@ -201,98 +308,309 @@
     </div>
 
     <!-- Sticky Nav -->
-    <nav class="bg-white border-b border-slate-100 py-4 px-6 shadow-sm">
+    <nav class="bg-white border-b border-amber-100 py-4 px-6 shadow-sm relative z-10">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <a href="dashboard.html" class="flex items-center gap-2 text-slate-600 hover:text-indigo-600 transition">
+            <a href="dashboard.html" class="flex items-center gap-2 text-amber-600 hover:text-amber-700 transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                <span class="text-sm font-bold">Keluar Kuis</span>
+                <span class="text-sm font-bold">Keluar Main Kuis</span>
             </a>
-            <span class="text-sm font-bold text-slate-800 font-outfit" x-text="quiz ? quiz.title : 'Kuis Evaluasi'"></span>
+            
+            <div class="flex items-center gap-2">
+                <span class="text-2xl animate-bounce-gentle inline-block">👑</span>
+                <span class="text-lg font-black text-slate-800 font-outfit" x-text="quiz ? quiz.title : 'Play Arena'"></span>
+            </div>
         </div>
     </nav>
 
-    <!-- Quiz Panel Body -->
-    <main class="flex-1 flex items-center justify-center p-6">
+    <!-- Play Arena Body -->
+    <main class="flex-1 flex items-center justify-center p-6 relative">
+        <!-- Background Bubble Accents -->
+        <div class="absolute w-[200px] h-[200px] rounded-full bg-pink-100/50 blur-2xl top-10 left-10 pointer-events-none"></div>
+        <div class="absolute w-[300px] h-[300px] rounded-full bg-amber-100/40 blur-3xl bottom-10 right-10 pointer-events-none"></div>
+
         <div x-show="loading" class="text-center py-20">
-            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto"></div>
-            <p class="text-xs text-slate-400 mt-3 font-semibold">Menyiapkan kuis...</p>
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto"></div>
+            <p class="text-xs text-slate-400 mt-3 font-bold">Menyiapkan Arena Bermain...</p>
         </div>
 
-        <div x-show="!loading" class="w-full max-w-xl" x-transition>
+        <div x-show="!loading" class="w-full max-w-2xl" x-transition>
             <!-- WIZARD IN-PROGRESS CARD -->
-            <div x-show="!finished" class="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden p-8 md:p-10 space-y-6">
-                <!-- Top wizard index -->
+            <div x-show="!finished" class="bg-white rounded-[2.5rem] border border-amber-100 shadow-xl overflow-hidden p-6 md:p-10 space-y-6">
+                <!-- Progress Header -->
                 <div class="flex items-center justify-between border-b border-slate-100 pb-4">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest" x-text="`Soal ${currentIdx + 1} dari ${questions.length}`"></span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-black text-slate-400 uppercase tracking-widest" x-text="`Game ${currentIdx + 1} dari ${questions.length}`"></span>
+                    </div>
                     
-                    <!-- Scoring status -->
-                    <span class="text-xs font-bold bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full" x-text="`Skor Sementara: ${correctAnswersCount * 10}`"></span>
+                    <button @click="speakCurrentQuestion()" class="p-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-full transition flex items-center gap-1 text-xs font-bold">
+                        <span>🔊 Dikte Suara</span>
+                    </button>
                 </div>
 
-                <!-- Progress percentage bar -->
-                <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div class="h-full bg-gradient-to-r from-indigo-500 to-pink-500 transition-all duration-300"
+                <!-- Bubbly progress bar -->
+                <div class="w-full h-4 bg-slate-100 rounded-full overflow-hidden p-0.5">
+                    <div class="h-full bg-gradient-to-r from-orange-400 to-amber-400 rounded-full transition-all duration-500 shadow-sm"
                          :style="`width: ${((currentIdx + 1) / questions.length) * 100}%`"></div>
                 </div>
 
-                <!-- Question heading -->
-                <h3 class="text-xl font-bold font-outfit text-slate-800 leading-relaxed pt-2" x-text="questions[currentIdx]?.question"></h3>
-
-                <!-- Options lists -->
-                <div class="space-y-3 pt-2">
-                    <template x-for="(opt, idx) in questions[currentIdx]?.options" :key="idx">
-                        <button @click="submitAnswer(idx)"
-                                class="w-full p-4.5 text-left rounded-2xl border text-sm font-semibold transition-all flex items-center justify-between"
-                                :class="answered ? (
-                                    idx === questions[currentIdx].answer ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : (
-                                        idx === selectedAnswer ? 'bg-rose-50 border-rose-300 text-rose-800' : 'bg-slate-50 border-slate-100 text-slate-400 opacity-60'
-                                    )
-                                ) : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'">
-                            <span x-text="opt"></span>
-                            
-                            <!-- State Indicator icon -->
-                            <span x-show="answered && idx === questions[currentIdx].answer" class="text-emerald-600 font-bold">✓ Benar</span>
-                            <span x-show="answered && idx === selectedAnswer && selectedAnswer !== questions[currentIdx].answer" class="text-rose-600 font-bold">✗ Salah</span>
-                        </button>
-                    </template>
+                <!-- Question Title heading -->
+                <div class="text-center space-y-2">
+                    <h3 class="text-xl md:text-2xl font-black text-slate-800 leading-relaxed font-outfit" x-text="questions[currentIdx]?.question"></h3>
                 </div>
 
-                <!-- Action Button next -->
+                <!-- ======================================= -->
+                <!-- GAMIFIED DYNAMIC QUIZ LAYOUT TEMPLATES -->
+                <!-- ======================================= -->
+
+                <!-- 1. TEMPLATE: VOICE_CHOICE (Bubbly Matching) -->
+                <template x-if="questions[currentIdx]?.type === 'voice_choice'">
+                    <div class="grid grid-cols-2 gap-4 py-4">
+                        <template x-for="(opt, idx) in questions[currentIdx]?.options" :key="idx">
+                            <button @click="submitAnswer(idx); speak(opt)"
+                                    class="bubble-button p-6 text-center text-xl font-black transition-all flex flex-col items-center justify-center min-h-[120px]"
+                                    :class="answered ? (
+                                        idx === questions[currentIdx].answer ? 'bg-emerald-100 border-emerald-400 text-emerald-800 animate-pop-bubble' : (
+                                            idx === selectedAnswer ? 'bg-rose-100 border-rose-400 text-rose-800' : 'bg-slate-50 border-slate-100 text-slate-300 opacity-60'
+                                        )
+                                    ) : (
+                                        idx === 0 ? 'bg-kids-gradient-yellow text-amber-800 border-amber-300' : (
+                                            idx === 1 ? 'bg-kids-gradient-blue text-blue-800 border-blue-300' : (
+                                                idx === 2 ? 'bg-kids-gradient-pink text-pink-800 border-pink-300' : 'bg-kids-gradient-green text-emerald-800 border-emerald-300'
+                                            )
+                                        )
+                                    )">
+                                <span class="text-2xl" x-text="opt"></span>
+                                <span x-show="answered && idx === questions[currentIdx].answer" class="text-xs font-bold text-emerald-700 mt-2">✓ Benar!</span>
+                                <span x-show="answered && idx === selectedAnswer && selectedAnswer !== questions[currentIdx].answer" class="text-xs font-bold text-rose-700 mt-2">✗ Coba Lagi</span>
+                            </button>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- 2. TEMPLATE: SPELL (Syllables matching bubbles) -->
+                <template x-if="questions[currentIdx]?.type === 'spell' || questions[currentIdx]?.type === 'spell_letters'">
+                    <div class="space-y-6 py-2 text-center">
+                        <!-- Spelled word result boxes -->
+                        <div class="flex justify-center gap-3 min-h-[60px] p-4 bg-slate-50 border-2 border-dashed border-amber-200 rounded-3xl items-center">
+                            <template x-for="seg in spelledSegments">
+                                <span class="px-5 py-2.5 bg-gradient-to-tr from-amber-400 to-orange-500 text-white rounded-2xl text-xl font-black shadow-md animate-pop-bubble" x-text="seg"></span>
+                            </template>
+                            <span x-show="spelledSegments.length === 0" class="text-xs text-slate-400 font-bold">Tekan gelembung suku kata di bawah sesuai urutan!</span>
+                        </div>
+
+                        <!-- Jumbled options selection -->
+                        <div class="flex justify-center gap-4 flex-wrap">
+                            <template x-for="seg in questions[currentIdx]?.jumbled" :key="seg">
+                                <button @click="clickSpellingOption(seg)"
+                                        :disabled="answered"
+                                        class="px-6 py-4 bg-white hover:bg-amber-50 border-4 border-amber-200 hover:border-amber-400 text-slate-800 text-xl font-black rounded-3xl shadow-md transition transform active:scale-95 disabled:opacity-50"
+                                        x-text="seg"></button>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 3. TEMPLATE: TRACE (Canvas Whiteboard Tracing) -->
+                <template x-if="questions[currentIdx]?.type === 'trace'">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-slate-400 font-bold">Silakan lukis langsung di papan digital!</span>
+                            <button @click="clearCanvas()" class="px-4 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold text-xs rounded-xl transition">
+                                Hapus Papan
+                            </button>
+                        </div>
+
+                        <!-- Tracing container box -->
+                        <div class="border-4 border-dashed border-indigo-200 rounded-3xl overflow-hidden bg-slate-50 relative">
+                            <!-- Watermark guide shape -->
+                            <div class="absolute inset-0 flex items-center justify-center pointer-events-none select-none opacity-[0.07]">
+                                <span class="text-[11rem] font-black text-indigo-950 font-outfit" x-text="questions[currentIdx]?.watermark"></span>
+                            </div>
+                            
+                            <canvas x-ref="quizCanvas" 
+                                    @mousedown="startDraw($event)" @mousemove="draw($event)" @mouseup="stopDraw()" @mouseleave="stopDraw()"
+                                    @touchstart="startDraw($event)" @touchmove="draw($event)" @touchend="stopDraw()"
+                                    class="drawing-canvas w-full h-[240px]"></canvas>
+                        </div>
+
+                        <!-- Brushes Color palette control -->
+                        <div class="flex items-center justify-between gap-4 pt-1">
+                            <span class="text-xs text-slate-400 font-bold">WARNA LUKISAN:</span>
+                            <div class="flex items-center gap-2">
+                                <template x-for="color in ['#4f46e5', '#ec4899', '#10b981', '#f59e0b', '#000000']">
+                                    <button @click="brushColor = color; speak('Ganti warna')"
+                                            class="w-7 h-7 rounded-full border-2 transition transform hover:scale-110"
+                                            :style="`background-color: ${color}`"
+                                            :class="brushColor === color ? 'border-indigo-600 scale-110' : 'border-white'"></button>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Tracing matching option submit -->
+                        <div class="pt-2">
+                            <template x-for="(opt, idx) in questions[currentIdx]?.options" :key="idx">
+                                <button @click="submitAnswer(idx)"
+                                        class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-md font-black shadow-lg transition"
+                                        x-text="opt"></button>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 4. TEMPLATE: COUNT (Bouncy Apples Counting) -->
+                <template x-if="questions[currentIdx]?.type === 'count'">
+                    <div class="space-y-6">
+                        <!-- Keranjang buah visual -->
+                        <div class="bg-gradient-to-b from-amber-50 to-amber-100/50 p-6 rounded-3xl border-2 border-dashed border-amber-200 flex flex-wrap items-center justify-center gap-4 min-h-[120px]">
+                            <template x-for="n in questions[currentIdx]?.count">
+                                <span class="text-5xl animate-bounce-gentle inline-block" x-text="questions[currentIdx]?.icon"></span>
+                            </template>
+                        </div>
+
+                        <!-- Bubbly counting options -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <template x-for="(opt, idx) in questions[currentIdx]?.options" :key="idx">
+                                <button @click="submitAnswer(idx)"
+                                        class="bubble-button py-4 text-center text-lg font-black transition-all"
+                                        :class="answered ? (
+                                            idx === questions[currentIdx].answer ? 'bg-emerald-500 border-emerald-600 text-white shadow-lg' : (
+                                                idx === selectedAnswer ? 'bg-rose-500 border-rose-600 text-white shadow-lg' : 'bg-slate-50 border-slate-100 text-slate-300 opacity-60'
+                                            )
+                                        ) : 'bg-white hover:bg-amber-50 border-slate-200 text-slate-800'"
+                                        x-text="opt"></button>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 5. TEMPLATE: SUM (Fruit Addition equation) -->
+                <template x-if="questions[currentIdx]?.type === 'sum'">
+                    <div class="space-y-6">
+                        <!-- Addition Visual representation -->
+                        <div class="flex items-center justify-center gap-4 bg-gradient-to-r from-emerald-50 to-sky-50 p-6 rounded-3xl border border-emerald-100">
+                            <!-- Left items block -->
+                            <div class="flex flex-wrap max-w-[150px] justify-center gap-1.5 p-3 bg-white rounded-2xl shadow-sm">
+                                <template x-for="n in questions[currentIdx]?.left_count">
+                                    <span class="text-3xl animate-bounce-gentle inline-block" x-text="questions[currentIdx]?.left_icon"></span>
+                                </template>
+                            </div>
+                            
+                            <!-- Plus Sign symbol -->
+                            <span class="text-3xl font-black text-indigo-600 font-outfit">+</span>
+                            
+                            <!-- Right items block -->
+                            <div class="flex flex-wrap max-w-[150px] justify-center gap-1.5 p-3 bg-white rounded-2xl shadow-sm">
+                                <template x-for="n in questions[currentIdx]?.right_count">
+                                    <span class="text-3xl animate-bounce-gentle inline-block" x-text="questions[currentIdx]?.right_icon"></span>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Addition options -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <template x-for="(opt, idx) in questions[currentIdx]?.options" :key="idx">
+                                <button @click="submitAnswer(idx)"
+                                        class="bubble-button py-4 text-center text-lg font-black transition-all"
+                                        :class="answered ? (
+                                            idx === questions[currentIdx].answer ? 'bg-emerald-500 border-emerald-600 text-white shadow-lg' : (
+                                                idx === selectedAnswer ? 'bg-rose-50 border-rose-600 text-white shadow-lg' : 'bg-slate-50 border-slate-100 text-slate-300 opacity-60'
+                                            )
+                                        ) : 'bg-white hover:bg-emerald-50 border-slate-200 text-slate-800'"
+                                        x-text="opt"></button>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 6. TEMPLATE: SCALE (Visual Balance scale puzzle) -->
+                <template x-if="questions[currentIdx]?.type === 'scale'">
+                    <div class="space-y-6">
+                        <!-- Timbangan Visual -->
+                        <div class="bg-gradient-to-r from-orange-50 to-amber-50 p-6 rounded-3xl border border-amber-100 flex flex-col items-center justify-center space-y-4">
+                            <div class="flex items-end justify-between w-full max-w-[400px]">
+                                <!-- Left Pan -->
+                                <div class="flex flex-col items-center space-y-1 w-1/3">
+                                    <div class="flex flex-wrap justify-center gap-1.5 p-3 bg-white rounded-2xl shadow-sm min-h-[70px] items-center">
+                                        <template x-for="n in questions[currentIdx]?.left_count">
+                                            <span class="text-3xl animate-bounce-gentle inline-block" x-text="questions[currentIdx]?.left_icon"></span>
+                                        </template>
+                                    </div>
+                                    <span class="text-xs font-bold text-slate-500">Piring Kiri</span>
+                                </div>
+                                
+                                <!-- Balance Scale Center Stand -->
+                                <div class="w-1/3 flex flex-col items-center">
+                                    <span class="text-5xl animate-bounce-gentle">⚖️</span>
+                                    <span class="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full mt-2">SEIMBANG</span>
+                                </div>
+
+                                <!-- Right Pan -->
+                                <div class="flex flex-col items-center space-y-1 w-1/3">
+                                    <div class="flex flex-wrap justify-center gap-1.5 p-3 bg-white rounded-2xl shadow-sm min-h-[70px] items-center">
+                                        <template x-for="n in questions[currentIdx]?.right_count">
+                                            <span class="text-3xl animate-bounce-gentle inline-block" x-text="questions[currentIdx]?.right_icon"></span>
+                                        </template>
+                                    </div>
+                                    <span class="text-xs font-bold text-slate-500">Piring Kanan</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Scale options selection -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <template x-for="(opt, idx) in questions[currentIdx]?.options" :key="idx">
+                                <button @click="submitAnswer(idx)"
+                                        class="bubble-button py-4 text-center text-lg font-black transition-all"
+                                        :class="answered ? (
+                                            idx === questions[currentIdx].answer ? 'bg-emerald-500 border-emerald-600 text-white shadow-lg' : (
+                                                idx === selectedAnswer ? 'bg-rose-50 border-rose-600 text-white shadow-lg' : 'bg-slate-50 border-slate-100 text-slate-300 opacity-60'
+                                            )
+                                        ) : 'bg-white hover:bg-emerald-50 border-slate-200 text-slate-800'"
+                                        x-text="opt"></button>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- ======================================= -->
+
+                <!-- Navigation Action Button next -->
                 <div x-show="answered" class="pt-4 flex justify-end">
                     <button @click="nextQuestion()"
-                            class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-md shadow-indigo-100 text-xs transition flex items-center gap-1.5">
-                        <span x-text="currentIdx + 1 === questions.length ? 'Lihat Hasil Akhir' : 'Soal Berikutnya'"></span>
+                            class="px-6 py-4 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-2xl shadow-md shadow-amber-200 text-sm transition flex items-center gap-1.5 transform hover:scale-102">
+                        <span x-text="currentIdx + 1 === questions.length ? 'Lihat Hasil Bintang 👑' : 'Lanjut Bermain 🚀'"></span>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
                 </div>
             </div>
 
             <!-- EXAM COMPLETE SCREEN -->
-            <div x-show="finished" class="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden p-10 text-center space-y-6" x-transition>
-                <span class="text-7xl animate-bounce-gentle inline-block" x-text="Math.round((correctAnswersCount / questions.length) * 100) >= 80 ? '🎉' : '💪'"></span>
+            <div x-show="finished" class="bg-white rounded-[2.5rem] border border-amber-100 shadow-xl overflow-hidden p-10 text-center space-y-6" x-transition>
+                <span class="text-7xl animate-bounce-gentle inline-block" x-text="Math.round((correctAnswersCount / questions.length) * 100) >= 80 ? '👑' : '💪'"></span>
                 
                 <div class="space-y-2">
-                    <h3 class="text-2xl font-extrabold font-outfit text-slate-800">Uji Evaluasi Selesai!</h3>
-                    <p class="text-xs text-slate-500 max-w-sm mx-auto">Selamat! Kamu sudah menyelesaikan seluruh rangkaian soal evaluasi hari ini dengan luar biasa.</p>
+                    <h3 class="text-3xl font-black text-slate-800 font-outfit">Petualangan Selesai!</h3>
+                    <p class="text-sm text-slate-500 max-w-sm mx-auto">Selamat! Kamu sudah menyelesaikan seluruh rangkaian tantangan bermain hari ini dengan sangat hebat!</p>
                 </div>
 
                 <!-- Big Grade layout -->
-                <div class="w-36 h-36 bg-gradient-to-tr from-indigo-500 to-pink-500 rounded-full flex flex-col items-center justify-center text-white mx-auto shadow-xl shadow-indigo-200">
-                    <p class="text-[10px] uppercase font-bold tracking-widest text-indigo-100">Skor Kamu</p>
-                    <p class="text-4xl font-black font-outfit mt-1" x-text="`${Math.round((correctAnswersCount / questions.length) * 100)}`"></p>
+                <div class="w-40 h-40 bg-gradient-to-tr from-amber-400 via-orange-500 to-pink-500 rounded-full flex flex-col items-center justify-center text-white mx-auto shadow-xl shadow-amber-200 relative">
+                    <div class="absolute inset-2 border-4 border-dashed border-white/30 rounded-full"></div>
+                    <p class="text-xs uppercase font-black tracking-widest text-amber-100">Bintang</p>
+                    <p class="text-5xl font-black font-outfit mt-1 animate-bounce-gentle" x-text="`${correctAnswersCount * 10}`"></p>
                 </div>
 
-                <p class="text-xs font-bold text-slate-700" x-text="`Benar ${correctAnswersCount} dari ${questions.length} Soal`"></p>
+                <p class="text-md font-black text-slate-700" x-text="`Kamu Menjawab Benar ${correctAnswersCount} dari ${questions.length} Tantangan`"></p>
 
                 <!-- Actions buttons -->
                 <div class="flex flex-wrap items-center justify-center gap-4 pt-4">
                     <button @click="resetQuiz()"
-                            class="px-6 py-3.5 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold rounded-2xl text-xs transition">
-                        Ulangi Kuis
+                            class="px-8 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl text-sm transition">
+                        Bermain Lagi 🔄
                     </button>
                     <a href="dashboard.html"
-                       class="px-7 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl text-xs shadow-md shadow-indigo-100 transition">
-                        Selesai & Ke Dashboard
+                       class="px-8 py-4 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-2xl text-sm shadow-lg shadow-amber-200 transition">
+                        Ke Dashboard 🏠
                     </a>
                 </div>
             </div>

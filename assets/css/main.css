@@ -90,3 +90,54 @@ body {
   box-shadow: 0 0 20px rgba(124, 58, 237, 0.4);
   transition: all 0.3s ease;
 }
+
+/* Kid-Friendly Calistung Animations & Visual Candy */
+@keyframes pop-bubble {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.animate-pop-bubble {
+  animation: pop-bubble 0.4s ease-out;
+}
+
+/* Big playful bubble buttons */
+.bubble-button {
+  background: #ffffff;
+  border: 4px solid #e2e8f0;
+  border-radius: 2rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.bubble-button:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.bubble-button:active {
+  transform: translateY(0) scale(0.95);
+}
+
+/* Kid Gradients */
+.bg-kids-gradient-yellow {
+  background: linear-gradient(135deg, #fef08a 0%, #fef3c7 100%);
+}
+.bg-kids-gradient-blue {
+  background: linear-gradient(135deg, #bfdbfe 0%, #dbeafe 100%);
+}
+.bg-kids-gradient-pink {
+  background: linear-gradient(135deg, #fbcfe8 0%, #fce7f3 100%);
+}
+.bg-kids-gradient-green {
+  background: linear-gradient(135deg, #bbf7d0 0%, #dcfce7 100%);
+}
+
+/* Confetti Popper base */
+.canvas-confetti-holder {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}

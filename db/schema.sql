@@ -4,6 +4,9 @@
 -- Level 1 (Dasar), Level 2 (Menengah), Level 3 (Tantangan Mahir)
 -- ==========================================
 
+-- Nonaktifkan sementara batasan Kunci Asing saat re-migrasi
+PRAGMA foreign_keys = OFF;
+
 -- Drop existing tables to recreate fresh
 DROP TABLE IF EXISTS quiz_scores;
 DROP TABLE IF EXISTS user_progress;
@@ -11,6 +14,14 @@ DROP TABLE IF EXISTS quizzes;
 DROP TABLE IF EXISTS lessons;
 DROP TABLE IF EXISTS courses;
 DROP TABLE IF EXISTS users;
+
+-- Hapus juga tabel versi Bahasa Indonesia lama jika ada
+DROP TABLE IF EXISTS skor_kuis;
+DROP TABLE IF EXISTS kemajuan_pengguna;
+DROP TABLE IF EXISTS kuis;
+DROP TABLE IF EXISTS pelajaran;
+DROP TABLE IF EXISTS kursus;
+DROP TABLE IF EXISTS pengguna;
 
 -- 1. Users Table
 CREATE TABLE users (
@@ -128,50 +139,53 @@ VALUES
 INSERT INTO quizzes (id, lesson_id, title, questions_json)
 VALUES 
 ('q-membaca-1', 'l-membaca-1', 'Kuis Detektif Huruf Vokal', '[
-    {"question": "Manakah di bawah ini yang merupakan huruf vokal?", "options": ["B", "C", "A", "D"], "answer": 2},
-    {"question": "Gambar APEL diawali dengan huruf vokal apa?", "options": ["I", "E", "O", "A"], "answer": 3},
-    {"question": "Kata IKAN memiliki huruf vokal pertama yaitu?", "options": ["I", "U", "E", "O"], "answer": 0}
+    {"type": "voice_choice", "question": "Manakah di bawah ini yang merupakan huruf vokal A?", "options": ["Huruf B", "Huruf C", "Huruf A 🌟", "Huruf D"], "answer": 2},
+    {"type": "voice_choice", "question": "Gambar APEL 🍎 diawali dengan huruf vokal apa?", "options": ["Huruf I", "Huruf E", "Huruf O", "Huruf A 🍎"], "answer": 3},
+    {"type": "voice_choice", "question": "Kata IKAN 🐟 memiliki huruf vokal pertama yaitu?", "options": ["Huruf I 🐟", "Huruf U", "Huruf E", "Huruf O"], "answer": 0}
 ]'),
 ('q-membaca-2', 'l-membaca-2', 'Kuis Ekspedisi Suku Kata', '[
-    {"question": "Jika kita menggabungkan BO dan LA, maka akan menjadi kata?", "options": ["BOLA ⚽", "BOBI 🐶", "BALON 🎈", "BOLU 🍰"], "answer": 0},
-    {"question": "Benda BUKU 📖 terbentuk dari suku kata?", "options": ["BU + KA", "BU + KU", "BA + KU", "BI + KI"], "answer": 1},
-    {"question": "Suku kata yang hilang pada TO + ... = TOPI 🧢 adalah?", "options": ["PA", "PE", "PI", "PU"], "answer": 2}
+    {"type": "spell", "question": "Gabungkan suku kata berikut menjadi kata BOLA ⚽", "word": "BOLA", "jumbled": ["LA", "BO"], "options": ["BOLA ⚽", "BOBI 🐶", "BALON 🎈", "BOLU 🍰"], "answer": 0},
+    {"type": "spell", "question": "Gabungkan suku kata berikut menjadi kata BUKU 📖", "word": "BUKU", "jumbled": ["KU", "BU"], "options": ["BUKA 🚪", "BUKU 📖", "BAKU 📦", "BIKI 🍨"], "answer": 1},
+    {"type": "spell", "question": "Suku kata yang hilang pada TO + ... = TOPI 🧢 adalah?", "word": "PI", "jumbled": ["PA", "PI"], "options": ["TOPA 👒", "TOPE 🕶️", "TOPI 🧢", "TOPU 🧁"], "answer": 2}
 ]'),
 ('q-membaca-3', 'l-membaca-3', 'Kuis Detektif Kalimat Rahasia', '[
-    {"question": "Susun huruf acak ini menjadi nama hewan pemakan pisang: K - E - N - A - G - O", "options": ["KUCING", "KELINCI", "MONYET", "KANGURU"], "answer": 2},
-    {"question": "Baca kalimat ini: \"Kucing hitam itu melompat tinggi.\" Siapakah yang melompat tinggi?", "options": ["Kucing hitam", "Kucing putih", "Anjing hitam", "Kelinci melompat"], "answer": 0},
-    {"question": "Lengkapi kalimat ini: \"Adik minum ... hangat di pagi hari.\"", "options": ["Nasi", "Susu 🥛", "Buku", "Mainan"], "answer": 1}
+    {"type": "spell_letters", "question": "Susun huruf acak berikut agar membentuk nama hewan pemakan pisang: MONYET 🐒", "word": "MONYET", "jumbled": ["Y", "E", "M", "N", "T", "O"], "options": ["KUCING", "KELINCI", "MONYET 🐒", "KANGURU"], "answer": 2},
+    {"type": "voice_choice", "question": "Baca kalimat ini: \"Kucing hitam itu melompat tinggi.\" Siapakah yang melompat tinggi?", "options": ["Kucing hitam 🐈", "Kucing putih", "Anjing hitam", "Kelinci melompat"], "answer": 0},
+    {"type": "voice_choice", "question": "Lengkapi kalimat ini: \"Adik minum ... hangat di pagi hari.\"", "options": ["Nasi", "Susu 🥛", "Buku", "Mainan"], "answer": 1}
 ]');
 
 -- Menulis Quizzes
 INSERT INTO quizzes (id, lesson_id, title, questions_json)
 VALUES 
 ('q-menulis-1', 'l-menulis-1', 'Kuis Garis Ajaib & Bentuk', '[
-    {"question": "Bentuk apakah yang mirip dengan buah apel merah?", "options": ["Segitiga", "Lingkaran 🔴", "Kotak", "Garis Lurus"], "answer": 1},
-    {"question": "Garis yang naik turun seperti puncak gunung dinamakan garis...", "options": ["Lurus", "Melingkar", "Zig-zag ⛰️", "Tebal"], "answer": 2}
+    {"type": "trace", "question": "Ikuti pola lingkaran bulat menyerupai buah apel merah! 🍎", "watermark": "O", "guide_path": "circle", "options": ["Selesai Melukis 👍"], "answer": 0},
+    {"type": "trace", "question": "Ikuti pola garis zig-zag naik turun seperti puncak gunung! ⛰️", "watermark": "M", "guide_path": "zigzag", "options": ["Selesai Melukis 👍"], "answer": 0}
 ]'),
 ('q-menulis-2', 'l-menulis-2', 'Kuis Lukisan Angka Cantik', '[
-    {"question": "Angka berapakah yang bentuknya mirip dengan leher bebek berenang?", "options": ["Angka 1", "Angka 2 🦆", "Angka 3", "Angka 4"], "answer": 1},
-    {"question": "Berapa jumlah garis tegak lurus yang dibutuhkan untuk menulis angka 1?", "options": ["1 garis 📏", "2 garis", "3 garis", "Tidak ada"], "answer": 0}
+    {"type": "trace", "question": "Mari melukis angka 2 yang mirip dengan leher bebek berenang! 🦆", "watermark": "2", "guide_path": "number_2", "options": ["Selesai Melukis 👍"], "answer": 0},
+    {"type": "trace", "question": "Mari melukis angka 1 tegak lurus yang mirip dengan tiang bendera! 📏", "watermark": "1", "guide_path": "number_1", "options": ["Selesai Melukis 👍"], "answer": 0}
 ]'),
 ('q-menulis-3', 'l-menulis-3', 'Kuis Ukiran Nama & Huruf', '[
-    {"question": "Huruf pertama saat kita ingin menulis kata \"MATA\" adalah...", "options": ["N", "M", "W", "A"], "answer": 1},
-    {"question": "Manakah penulisan kata \"IBU\" yang benar?", "options": ["U-B-I", "I-B-U 👩", "B-I-U", "I-U-B"], "answer": 1}
+    {"type": "trace", "question": "Mari mengukir huruf pertama dari kata IBU, yaitu huruf I kapital! 👩", "watermark": "I", "guide_path": "letter_I", "options": ["Selesai Melukis 👍"], "answer": 0},
+    {"type": "trace", "question": "Mari menulis kata lengkap IBU di papan tulis digital! 👩", "watermark": "IBU", "guide_path": "word_IBU", "options": ["Selesai Melukis 👍"], "answer": 0}
 ]');
 
 -- Berhitung Quizzes
 INSERT INTO quizzes (id, lesson_id, title, questions_json)
 VALUES 
 ('q-berhitung-1', 'l-berhitung-1', 'Kuis Berhitung Apel Merah', '[
-    {"question": "Ada 3 apel di atas meja, lalu ibu meletakkan 1 apel lagi. Berapa jumlah semua apel?", "options": ["3 apel", "4 apel 🍎", "5 apel", "2 apel"], "answer": 1},
-    {"question": "Jika di keranjang ada 5 buah apel merah dan kita ambil 2, ada berapa apel tersisa di keranjang?", "options": ["1 apel", "2 apel", "3 apel 🍎", "4 apel"], "answer": 2}
+    {"type": "count", "question": "Ada berapa buah apel merah lezat di dalam keranjang? 🍎", "icon": "🍎", "count": 3, "options": ["2 Apel", "3 Apel 🍎", "4 Apel", "5 Apel"], "answer": 1},
+    {"type": "count", "question": "Ibu memasukkan buah apel baru ke keranjang! Coba hitung ada berapa apel sekarang? 🍎", "icon": "🍎", "count": 5, "options": ["3 Apel", "4 Apel", "5 Apel 🍎", "6 Apel"], "answer": 2}
 ]'),
 ('q-berhitung-2', 'l-berhitung-2', 'Kuis Pesta Penjumlahan', '[
-    {"question": "3 Stroberi 🍓 + 4 Jeruk 🍊 sama dengan berapa buah keseluruhan?", "options": ["5 buah", "6 buah", "7 buah 🌟", "8 buah"], "answer": 2},
-    {"question": "2 Pisang 🍌 + 2 Pisang 🍌 sama dengan...", "options": ["4 Pisang 🍌", "3 Pisang", "5 Pisang", "6 Pisang"], "answer": 0}
+    {"type": "sum", "question": "Berapakah jumlah dari 3 stroberi manis ditambah 4 buah jeruk segar? 🍓🍊", "left_icon": "🍓", "left_count": 3, "right_icon": "🍊", "right_count": 4, "options": ["5 Buah", "6 Buah", "7 Buah 🌟", "8 Buah"], "answer": 2},
+    {"type": "sum", "question": "Dodi membawa 2 pisang kuning, lalu adik membawa 2 pisang lagi. Berapakah jumlah seluruh pisang? 🍌", "left_icon": "🍌", "left_count": 2, "right_icon": "🍌", "right_count": 2, "options": ["4 Pisang 🍌", "3 Pisang", "5 Pisang", "6 Pisang"], "answer": 0}
 ]'),
 ('q-berhitung-3', 'l-berhitung-3', 'Kuis Timbangan & Balon Misterius', '[
-    {"question": "Ada 6 balon terbang 🎈. Tiba-tiba ada 3 balon meletus 💥. Berapa balon yang masih terbang indah?", "options": ["2 balon", "3 balon 🎈", "4 balon", "5 balon"], "answer": 1},
-    {"question": "Di piring ada 8 biskuit 🍪. Dodi memakan 4 biskuit. Kemudian adik memakan 2 biskuit. Berapa biskuit tersisa?", "options": ["2 biskuit 🍪", "4 biskuit", "1 biskuit", "Tidak ada biskuit"], "answer": 0},
-    {"question": "Jika 1 apel beratnya sama dengan 2 stroberi, maka 2 apel beratnya sama dengan berapa stroberi?", "options": ["2 stroberi", "3 stroberi", "4 stroberi 🍓", "5 stroberi"], "answer": 2}
+    {"type": "count", "question": "Ada 6 balon terbang 🎈. Tiba-tiba ada 3 balon meletus 💥. Berapa balon yang masih terbang indah? 🎈", "icon": "🎈", "count": 3, "options": ["2 balon", "3 balon 🎈", "4 balon", "5 balon"], "answer": 1},
+    {"type": "count", "question": "Di piring ada 8 biskuit 🍪. Dodi memakan 4 biskuit, lalu adik memakan 2 biskuit. Berapa biskuit tersisa? 🍪", "icon": "🍪", "count": 2, "options": ["2 biskuit 🍪", "4 biskuit", "1 biskuit", "Tidak ada biskuit"], "answer": 0},
+    {"type": "scale", "question": "Jika 1 apel 🍎 beratnya sama dengan 2 stroberi 🍓, maka 2 apel beratnya sama dengan berapa stroberi?", "left_icon": "🍎", "left_count": 2, "right_icon": "🍓", "right_count": 4, "options": ["2 Stroberi", "3 Stroberi", "4 Stroberi 🍓", "5 Stroberi"], "answer": 2}
 ]');
+
+-- Aktifkan kembali batasan Kunci Asing setelah selesai menyemai data
+PRAGMA foreign_keys = ON;
