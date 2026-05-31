@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Materi Belajar - BintangBelajar</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Alpine.js Core -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="assets/css/main.css">
+    <!-- Custom JS -->
+    <script src="assets/js/main.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen"
+      x-data="{
+          courseId: '',
+          course: {},
+          lessons: [],
+          completedLessons: [],
+          activeLesson: {},
+          loading: true,
+
+          async init() {
+              const params = new URLSearchParams(window.location.search);
+              this.courseId = params.get('id') || 'c-sd-01';
+              
+              setTimeout(async () => {
+                  if (!Alpine.store('auth').user) {
+                      window.location.href = 'login.html';
+                      return;
+                  }
+                  await this.fetchCourseDetails();
+              }, 400);
+          },
+
+          async fetchCourseDetails() {
+              this.loading = true;
+              try {
+                  const headers = { 'Authorization': `Bearer ${Alpine.store('auth').token}` };
+                  const res = await fetch(`/api/courses?id=${this.courseId}`, { headers });
+                  const data = await res.json();
+                  if (data.success) {
+                      this.course = data.course;
+                      this.lessons = data.lessons;
+                      this.completedLessons = data.completed || [];
+                      if (this.lessons.length > 0) {
+                          this.activeLesson = this.lessons[0];
+                      }
+                  }
+              } catch (e) {
+                  // Local simulator fallback database
+                  console.log('Loading local course details fallback...');
+                  const fallbacks = {
+                      'c-sd-01': {
+                          course: { id: 'c-sd-01', title: 'Pecahan dan Bangun Datar Dasar', description: 'Matematika SD Kelas 4-5 yang dikemas seru dengan cerita.' },
+                          lessons: [
+                              { id: 'l-sd-1', title: 'Pengenalan Pecahan Sederhana', content_markdown: 'Pecahan menggambarkan bagian dari keseluruhan. Mari kita belah pizza imajiner kita menjadi 4 bagian!', media_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80', media_type: 'video', sort_order: 1 },
+                              { id: 'l-sd-2', title: 'Mengenal Bangun Datar Segitiga & Persegi', content_markdown: 'Menghitung keliling dan luas bangun datar dasar dengan rumus yang menyenangkan.', media_url: '', media_type: 'pdf', sort_order: 2 }
+                          ]
+                      },
+                      'c-mat-01': {
+                          course: { id: 'c-mat-01', title: 'Trik Cepat Aljabar & Geometri', description: 'Rumus cepat aljabar dasar.' },
+                          lessons: [
+                              { id: 'l-mat-1', title: 'Konsep Dasar Aljabar Linear', content_markdown: 'Menemukan nilai X dan Y tanpa ribet menggunakan trik visual eliminasi kilat.', media_url: 'https://images.unsplash.com/photo-1453733190148-c44698c265f8?auto=format&fit=crop&w=800&q=80', media_type: 'video', sort_order: 1 }
+                          ]
+                      },
+                      'c-smp-01': {
+                          course: { id: 'c-smp-01', title: 'Sistem Organ Tubuh & Tata Surya', description: 'Memahami sains secara visual.' },
+                          lessons: [
+                              { id: 'l-smp-1', title: 'Sistem Tata Surya & Planet-Planet', content_markdown: 'Mempelajari 8 planet dalam tata surya kita, orbitnya, dan mengapa Pluto tidak lagi dikategorikan sebagai planet utama.', media_url: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=800&q=80', media_type: 'video', sort_order: 1 },
+                              { id: 'l-smp-2', title: 'Hukum Newton I, II, dan III', content_markdown: 'Bagaimana gaya mempengaruhi gerak benda? Mengapa ketika bus direm mendadak tubuh kita terdorong ke depan?', media_url: '', media_type: 'pdf', sort_order: 2 }
+                          ]
+                      }
+                  };
+                  const current = fallbacks[this.courseId] || fallbacks['c-sd-01'];
+                  this.course = current.course;
+                  this.lessons = current.lessons;
+                  
+                  // Read completed list from offline localStorage simulator
+                  const offlineCompletions = JSON.parse(localStorage.getItem(`bb_completed_${this.courseId}`) || '[]');
+                  this.completedLessons = offlineCompletions;
+                  
+                  if (this.lessons.length > 0) {
+                      this.activeLesson = this.lessons[0];
+                  }
+              } finally {
+                  this.loading = false;
+              }
+          },
+
+          async markAsComplete() {
+              try {
+                  const token = Alpine.store('auth').token;
+                  const res = await fetch('/api/courses', {
+                      method: 'POST',
+                      headers: { 
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`
+                      },
+                      body: JSON.stringify({ lesson_id: this.activeLesson.id })
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                      Alpine.store('toast').success('Bagus sekali! Pelajaran berhasil diselesaikan.');
+                      this.saveLocalProgress(this.activeLesson.id);
+                  }
+              } catch (e) {
+                  // Fallback offline saver
+                  this.saveLocalProgress(this.activeLesson.id);
+                  Alpine.store('toast').success('Bagus! Progress disimpan secara lokal (Demo).');
+              }
+          },
+
+          saveLocalProgress(id) {
+              if (!this.completedLessons.includes(id)) {
+                  this.completedLessons.push(id);
+                  localStorage.setItem(`bb_completed_${this.courseId}`, JSON.stringify(this.completedLessons));
+              }
+          },
+
+          isCompleted(id) {
+              return this.completedLessons.includes(id);
+          }
+      }">
+
+    <!-- Global Toast Component -->
+    <div class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
+        <template x-for="toast in $store.toast.list" :key="toast.id">
+            <div class="p-4 rounded-xl shadow-lg border text-sm font-medium flex items-center gap-3 pointer-events-auto transition duration-300"
+                 :class="{
+                    'bg-emerald-50 text-emerald-800 border-emerald-200': toast.type === 'success',
+                    'bg-rose-50 text-rose-800 border-rose-200': toast.type === 'error',
+                    'bg-sky-50 text-sky-800 border-sky-200': toast.type === 'info',
+                    'bg-amber-50 text-amber-800 border-amber-200': toast.type === 'warning'
+                 }">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span x-text="toast.message"></span>
+            </div>
+        </template>
+    </div>
+
+    <!-- Sticky Nav -->
+    <nav class="bg-white border-b border-slate-100 py-4 px-6 shadow-sm">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <a href="dashboard.html" class="flex items-center gap-2 text-slate-600 hover:text-indigo-600 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                <span class="text-sm font-bold">Kembali ke Dashboard</span>
+            </a>
+            
+            <span class="text-sm font-bold text-slate-800 font-outfit" x-text="course.title"></span>
+        </div>
+    </nav>
+
+    <!-- Content Split Area -->
+    <div x-show="loading" class="text-center py-40">
+        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto"></div>
+        <p class="text-xs text-slate-400 mt-3 font-semibold">Memuat modul belajar...</p>
+    </div>
+
+    <div x-show="!loading" class="max-w-7xl mx-auto py-10 px-6 grid md:grid-cols-3 gap-8" x-transition>
+        <!-- LEFT: Lesson Media Viewer (Span 2) -->
+        <div class="md:col-span-2 space-y-6">
+            <!-- Media panel -->
+            <div class="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm">
+                <!-- If VIDEO -->
+                <template x-if="activeLesson.media_type === 'video'">
+                    <div class="aspect-video bg-slate-900 relative flex items-center justify-center overflow-hidden">
+                        <img :src="activeLesson.media_url" class="absolute inset-0 w-full h-full object-cover opacity-60">
+                        <!-- Play button overlay -->
+                        <div class="relative z-10 w-20 h-20 bg-indigo-600 text-white rounded-full flex items-center justify-center text-3xl shadow-xl shadow-indigo-500/40 cursor-pointer hover:scale-105 transition-all">
+                            ▶
+                        </div>
+                    </div>
+                </template>
+
+                <!-- If PDF WORKSHEET -->
+                <template x-if="activeLesson.media_type === 'pdf'">
+                    <div class="p-12 text-center bg-gradient-to-tr from-rose-50 to-indigo-50/20 border-b border-slate-100 space-y-4">
+                        <span class="text-6xl animate-bounce-gentle inline-block">📄</span>
+                        <h4 class="text-lg font-bold font-outfit text-slate-800">Latihan Worksheet Terlampir</h4>
+                        <p class="text-xs text-slate-500 max-w-sm mx-auto">Cetak lembar kerja ini di rumah untuk membantu mempercepat pemahaman belajar siswa secara mandiri.</p>
+                        <button @click="$store.toast.info('Mengunduh worksheet PDF...')"
+                                class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-rose-100 transition inline-flex items-center gap-2">
+                            <span>Unduh Lembar Kerja (PDF)</span>
+                        </button>
+                    </div>
+                </template>
+
+                <!-- Content info -->
+                <div class="p-8 space-y-4">
+                    <span class="inline-block text-[10px] font-bold bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full uppercase" x-text="activeLesson.media_type"></span>
+                    <h2 class="text-2xl font-bold font-outfit text-slate-800" x-text="activeLesson.title"></h2>
+                    <p class="text-slate-600 leading-relaxed text-sm" x-text="activeLesson.content_markdown"></p>
+                </div>
+            </div>
+
+            <!-- Task controls -->
+            <div class="flex items-center justify-between bg-white p-6 rounded-3xl border border-slate-100 shadow-sm gap-4">
+                <button @click="markAsComplete()"
+                        class="px-6 py-3.5 rounded-2xl font-bold text-sm shadow-md transition"
+                        :class="isCompleted(activeLesson.id) ? 'bg-emerald-500 text-white shadow-emerald-100' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100'">
+                    <span x-text="isCompleted(activeLesson.id) ? '✓ Selesai Dipelajari' : 'Tandai Selesai & Dapatkan Bintang'"></span>
+                </button>
+
+                <!-- Go to quiz button -->
+                <a :href="`quiz.html?lesson_id=${activeLesson.id}`"
+                   class="px-6 py-3.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:opacity-95 text-white font-bold rounded-2xl shadow-md shadow-pink-100 text-sm transition flex items-center gap-2">
+                    <span>Kerjakan Kuis Materi 📝</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- RIGHT: Course Outline / Lessons List (Span 1) -->
+        <div class="space-y-6">
+            <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+                <h3 class="text-base font-bold font-outfit text-slate-800">Daftar Pelajaran</h3>
+                <p class="text-xs text-slate-400">Ikuti urutan pelajaran di bawah ini secara runut untuk mempermudah pemahaman:</p>
+                
+                <div class="space-y-3 pt-2">
+                    <template x-for="(lesson, idx) in lessons" :key="lesson.id">
+                        <button @click="activeLesson = lesson"
+                                class="w-full p-4 rounded-2xl border text-left flex items-start gap-4 transition"
+                                :class="activeLesson.id === lesson.id ? 'border-indigo-600 bg-indigo-50/20' : 'border-slate-100 hover:bg-slate-50'">
+                            <span class="w-6 h-6 rounded-full bg-slate-100 text-[10px] font-bold flex items-center justify-center text-slate-600 mt-0.5"
+                                  :class="activeLesson.id === lesson.id ? 'bg-indigo-600 text-white' : ''"
+                                  x-text="idx + 1"></span>
+                            
+                            <div class="flex-1">
+                                <h4 class="text-xs font-bold text-slate-800 line-clamp-1" x-text="lesson.title"></h4>
+                                <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 mt-1 inline-block" x-text="lesson.media_type"></span>
+                            </div>
+                            
+                            <!-- Checkmark completion status -->
+                            <template x-if="isCompleted(lesson.id)">
+                                <span class="text-emerald-500 font-bold text-base mt-0.5">✓</span>
+                            </template>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

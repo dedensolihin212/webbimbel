@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Siswa - BintangBelajar</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Alpine.js Core -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="assets/css/main.css">
+    <!-- Custom JS -->
+    <script src="assets/js/main.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen" 
+      x-data="{
+          courses: [],
+          filterCategory: 'Semua',
+          loading: true,
+
+          async init() {
+              // Authentication check
+              setTimeout(async () => {
+                  if (!Alpine.store('auth').user) {
+                      Alpine.store('toast').warning('Silakan masuk terlebih dahulu.');
+                      window.location.href = 'login.html';
+                      return;
+                  }
+                  await this.fetchCourses();
+              }, 400);
+          },
+
+          async fetchCourses() {
+              this.loading = true;
+              try {
+                  const headers = { 'Authorization': `Bearer ${Alpine.store('auth').token}` };
+                  const res = await fetch('/api/courses', { headers });
+                  const data = await res.json();
+                  if (data.success) {
+                      this.courses = data.courses;
+                  }
+              } catch (e) {
+                  // Standard offline simulator fallback
+                  console.log('Loading local courses fallback database...');
+                  this.courses = [
+                      { id: 'c-cal-01', title: 'Belajar Membaca & Menulis Ceria', description: 'Modul Calistung interaktif untuk adik-adik TK.', category: 'Calistung', difficulty_level: 'Easy', thumbnail_url: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=400&q=80' },
+                      { id: 'c-sd-01', title: 'Pecahan dan Bangun Datar Dasar', description: 'Matematika SD dengan visual pecahan pizza.', category: 'SD', difficulty_level: 'Medium', thumbnail_url: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=400&q=80' },
+                      { id: 'c-mat-01', title: 'Trik Cepat Aljabar & Geometri', description: 'Trik kilat eliminasi linear dan aljabar dasar.', category: 'Matematika', difficulty_level: 'Hard', thumbnail_url: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=400&q=80' },
+                      { id: 'c-smp-01', title: 'Sistem Organ Tubuh & Tata Surya', description: 'Mempelajari 8 planet luar tata surya secara seru.', category: 'IPA SMP', difficulty_level: 'Medium', thumbnail_url: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=400&q=80' }
+                  ];
+              } finally {
+                  this.loading = false;
+              }
+          },
+
+          filteredCourses() {
+              if (this.filterCategory === 'Semua') {
+                  return this.courses;
+              }
+              return this.courses.filter(c => c.category === this.filterCategory);
+          },
+
+          openCourse(course) {
+              if (course.category === 'Calistung') {
+                  window.location.href = `calistung.html?id=${course.id}`;
+              } else {
+                  window.location.href = `learn.html?id=${course.id}`;
+              }
+          }
+      }">
+
+    <!-- Global Toast Component -->
+    <div class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
+        <template x-for="toast in $store.toast.list" :key="toast.id">
+            <div class="p-4 rounded-xl shadow-lg border text-sm font-medium flex items-center gap-3 pointer-events-auto transition duration-300"
+                 :class="{
+                    'bg-emerald-50 text-emerald-800 border-emerald-200': toast.type === 'success',
+                    'bg-rose-50 text-rose-800 border-rose-200': toast.type === 'error',
+                    'bg-sky-50 text-sky-800 border-sky-200': toast.type === 'info',
+                    'bg-amber-50 text-amber-800 border-amber-200': toast.type === 'warning'
+                 }">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span x-text="toast.message"></span>
+            </div>
+        </template>
+    </div>
+
+    <!-- Navigation Header -->
+    <nav class="bg-white border-b border-slate-100 py-4 px-6 shadow-sm">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <a href="index.html" class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-pink-500 flex items-center justify-center text-white text-sm">⭐</div>
+                <span class="text-xl font-bold font-outfit bg-gradient-to-r from-indigo-600 to-pink-500 bg-clip-text text-transparent">BintangBelajar</span>
+            </a>
+            
+            <div class="flex items-center gap-4">
+                <div class="text-right">
+                    <p class="text-sm font-bold text-slate-800" x-text="$store.auth.user ? $store.auth.user.name : ''"></p>
+                    <p class="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full inline-block font-bold mt-0.5" x-text="$store.auth.user ? 'Siswa ' + $store.auth.user.grade_level : ''"></p>
+                </div>
+                <button @click="$store.auth.logout()" class="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 px-3 py-2 rounded-xl transition">Keluar</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto py-12 px-6 space-y-8">
+        
+        <!-- Welcome banner card -->
+        <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 rounded-[2rem] p-8 md:p-12 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div class="absolute w-[300px] h-[300px] bg-white/10 rounded-full blur-3xl -top-10 -right-10"></div>
+            <div class="space-y-3 relative z-10">
+                <h1 class="text-3xl md:text-4xl font-extrabold font-outfit">Halo, <span x-text="$store.auth.user ? $store.auth.user.name : 'Sahabat'"></span>! 👋</h1>
+                <p class="text-sm md:text-base text-indigo-100/90 max-w-lg">Selamat datang di kelas petualangan belajarmu hari ini. Pilih subjek yang ingin kamu pelajari di bawah dan mulailah bersenang-senang!</p>
+            </div>
+            
+            <div class="bg-white/10 backdrop-blur-md border border-white/20 p-5 rounded-2xl relative z-10 flex items-center gap-4 text-left">
+                <span class="text-4xl animate-bounce-gentle inline-block">🏆</span>
+                <div>
+                    <p class="text-xs font-bold text-indigo-100">Bintang Kamu</p>
+                    <p class="text-2xl font-bold font-outfit">85 Bintang</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Tab System -->
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
+            <div class="flex flex-wrap gap-2">
+                <template x-for="cat in ['Semua', 'Calistung', 'SD', 'Matematika', 'IPA SMP']">
+                    <button @click="filterCategory = cat"
+                            class="px-5 py-2.5 rounded-2xl text-sm font-bold transition-all"
+                            :class="filterCategory === cat ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'">
+                        <span x-text="cat === 'Calistung' ? '👶 Calistung TK' : (cat === 'SD' ? '🎒 Mapel SD' : (cat === 'Matematika' ? '🧮 Matematika' : (cat === 'IPA SMP' ? '🔬 IPA SMP' : cat)))"></span>
+                    </button>
+                </template>
+            </div>
+            
+            <div class="text-xs text-slate-500 font-medium">
+                Menampilkan <span class="font-bold text-slate-800" x-text="filteredCourses().length"></span> modul belajar
+            </div>
+        </div>
+
+        <!-- Loading animation -->
+        <div x-show="loading" class="text-center py-20">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto"></div>
+            <p class="text-xs text-slate-400 mt-3 font-semibold">Mengambil daftar kelas...</p>
+        </div>
+
+        <!-- Grid Listings -->
+        <div x-show="!loading" class="grid md:grid-cols-3 gap-8" x-transition>
+            <template x-for="course in filteredCourses()" :key="course.id">
+                <div class="group bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col">
+                    <div class="aspect-video w-full overflow-hidden bg-slate-100 relative">
+                        <img :src="course.thumbnail_url" :alt="course.title" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <span class="absolute top-4 left-4 px-3 py-1.5 rounded-full text-[10px] font-bold text-white shadow-sm"
+                              :class="{
+                                  'bg-amber-500': course.category === 'Calistung',
+                                  'bg-sky-500': course.category === 'SD',
+                                  'bg-violet-500': course.category === 'Matematika',
+                                  'bg-emerald-500': course.category === 'IPA SMP'
+                              }" x-text="course.category"></span>
+                    </div>
+                    
+                    <div class="p-6 space-y-3 flex-1 flex flex-col justify-between">
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider" x-text="course.difficulty_level"></span>
+                                <span class="text-xs font-semibold text-slate-400">✨ Baru</span>
+                            </div>
+                            <h3 class="text-lg font-bold font-outfit text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition" x-text="course.title"></h3>
+                            <p class="text-xs text-slate-500 line-clamp-2 leading-relaxed" x-text="course.description"></p>
+                        </div>
+                        
+                        <div class="pt-6 border-t border-slate-100 flex items-center justify-between gap-4">
+                            <span class="text-[10px] text-slate-400 font-bold">100% GRATIS</span>
+                            <button @click="openCourse(course)"
+                                    class="px-4 py-2.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white font-bold rounded-xl text-xs transition flex items-center gap-1">
+                                <span>Mulai Belajar</span>
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </main>
+</body>
+</html>

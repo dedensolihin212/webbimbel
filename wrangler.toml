@@ -1,0 +1,17 @@
+# Wrangler Configuration for Cloudflare Pages with Functions
+name = "bintangbelajar"
+compatibility_date = "2026-05-31"
+
+[vars]
+JWT_SECRET = "super-secret-jwt-key-change-in-production"
+
+# D1 Database Binding
+[[d1_databases]]
+binding = "DB"
+database_name = "bintangbelajar_db"
+database_id = "your-d1-database-uuid-here"
+
+# R2 Storage Binding
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "bintangbelajar-storage"

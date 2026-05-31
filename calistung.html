@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bermain Calistung TK - BintangBelajar</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Alpine.js Core -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="assets/css/main.css">
+    <!-- Custom JS -->
+    <script src="assets/js/main.js"></script>
+</head>
+<body class="bg-gradient-to-b from-amber-50 via-white to-sky-50 min-h-screen flex flex-col font-outfit"
+      x-data="{
+          activeTab: 'membaca',
+          
+          // Membaca (Reading) State
+          letters: [
+              { name: 'A', word: 'Apel 🍎', desc: 'A untuk Apel' },
+              { name: 'I', word: 'Ikan 🐟', desc: 'I untuk Ikan' },
+              { name: 'U', word: 'Ular 🐍', desc: 'U untuk Ular' },
+              { name: 'E', word: 'Ember 🪣', desc: 'E untuk Ember' },
+              { name: 'O', word: 'Obor 🪵', desc: 'O untuk Obor' }
+          ],
+          
+          // Berhitung (Counting) State
+          appleCount: 3,
+          selectedCount: null,
+          isCorrectCount: false,
+
+          // Voice Synthesis (TTS) Helper
+          speak(text) {
+              if ('speechSynthesis' in window) {
+                  window.speechSynthesis.cancel(); // cancel any active speech
+                  const utterance = new SpeechSynthesisUtterance(text);
+                  utterance.lang = 'id-ID'; // set to Indonesian!
+                  utterance.rate = 0.85; // slightly slower for kids
+                  utterance.pitch = 1.25; // higher cute pitch
+                  window.speechSynthesis.speak(utterance);
+              }
+          },
+
+          generateNewCount() {
+              this.appleCount = Math.floor(Math.random() * 5) + 1; // 1 to 5
+              this.selectedCount = null;
+              this.isCorrectCount = false;
+          },
+
+          checkCount(num) {
+              this.selectedCount = num;
+              if (num === this.appleCount) {
+                  this.isCorrectCount = true;
+                  this.speak(`Benar! Jumlahnya adalah ${num}`);
+                  Alpine.store('toast').success('Hebat! Kamu Benar! 🎉');
+                  window.triggerConfetti();
+              } else {
+                  this.isCorrectCount = false;
+                  this.speak(`Salah, coba hitung lagi apelnya.`);
+                  Alpine.store('toast').warning('Coba hitung sekali lagi ya...');
+              }
+          }
+      }">
+
+    <!-- Global Toast Component -->
+    <div class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
+        <template x-for="toast in $store.toast.list" :key="toast.id">
+            <div class="p-4 rounded-xl shadow-lg border text-sm font-medium flex items-center gap-3 pointer-events-auto transition duration-300"
+                 :class="{
+                    'bg-emerald-50 text-emerald-800 border-emerald-200': toast.type === 'success',
+                    'bg-rose-50 text-rose-800 border-rose-200': toast.type === 'error',
+                    'bg-sky-50 text-sky-800 border-sky-200': toast.type === 'info',
+                    'bg-amber-50 text-amber-800 border-amber-200': toast.type === 'warning'
+                 }">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span x-text="toast.message"></span>
+            </div>
+        </template>
+    </div>
+
+    <!-- Playground Navigation -->
+    <nav class="bg-white border-b border-amber-100 py-4 px-6 shadow-sm">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <a href="dashboard.html" class="flex items-center gap-2 text-amber-600 hover:text-amber-700 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                <span class="text-sm font-bold">Keluar Playground</span>
+            </a>
+            
+            <div class="flex items-center gap-2">
+                <span class="text-2xl animate-bounce-gentle inline-block">👑</span>
+                <span class="text-lg font-bold text-slate-800 font-outfit">Petualangan Calistung TK!</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Playground Selection -->
+    <header class="max-w-5xl mx-auto pt-10 px-6 text-center space-y-6">
+        <h1 class="text-3xl md:text-5xl font-black text-slate-900 leading-tight">
+            Papan Main <span class="text-gradient-kids">Calistung Ceria</span>
+        </h1>
+        <p class="text-slate-500 text-sm max-w-md mx-auto">Klik tombol-tombol di bawah untuk beralih antara permainan membaca suara, coretan angka, dan berhitung benda!</p>
+        
+        <!-- Game switch buttons -->
+        <div class="flex justify-center flex-wrap gap-4 pt-2">
+            <button @click="activeTab = 'membaca'; speak('Mari belajar membaca bersama Bintang Belajar')"
+                    class="px-6 py-4 rounded-2xl font-bold shadow-md transition transform hover:scale-102 flex items-center gap-2 text-sm"
+                    :class="activeTab === 'membaca' ? 'bg-amber-500 text-white shadow-amber-200' : 'bg-white border border-amber-100 text-amber-600 hover:bg-amber-50'">
+                <span>📖 1. Belajar Membaca</span>
+            </button>
+            <button @click="activeTab = 'menulis'; speak('Mari berlatih menulis angka dan huruf di papan tulis digital')"
+                    class="px-6 py-4 rounded-2xl font-bold shadow-md transition transform hover:scale-102 flex items-center gap-2 text-sm"
+                    :class="activeTab === 'menulis' ? 'bg-indigo-600 text-white shadow-indigo-200' : 'bg-white border border-indigo-100 text-indigo-600 hover:bg-indigo-50'">
+                <span>✏️ 2. Latihan Menulis</span>
+            </button>
+            <button @click="activeTab = 'berhitung'; speak('Mari berhitung buah apel merah'); generateNewCount()"
+                    class="px-6 py-4 rounded-2xl font-bold shadow-md transition transform hover:scale-102 flex items-center gap-2 text-sm"
+                    :class="activeTab === 'berhitung' ? 'bg-emerald-500 text-white shadow-emerald-200' : 'bg-white border border-emerald-100 text-emerald-600 hover:bg-emerald-50'">
+                <span>🍎 3. Bermain Berhitung</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Play ground Main Container -->
+    <main class="flex-1 max-w-5xl w-full mx-auto p-6 flex items-center justify-center">
+        
+        <!-- MODULE 1: MEMBACA (READING) -->
+        <div x-show="activeTab === 'membaca'" class="w-full space-y-8" x-transition>
+            <div class="grid md:grid-cols-5 gap-6">
+                <template x-for="item in letters" :key="item.name">
+                    <button @click="speak(`${item.name}, ${item.desc}`)"
+                            class="bg-white hover:bg-amber-50 border-2 border-amber-100 p-8 rounded-[2rem] text-center shadow-md shadow-amber-50/50 hover:shadow-xl hover:-translate-y-1 transition duration-300 space-y-4">
+                        <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 text-white text-4xl font-extrabold flex items-center justify-center mx-auto shadow-md" x-text="item.name"></div>
+                        <div>
+                            <h4 class="text-2xl font-bold text-slate-800" x-text="item.word"></h4>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase mt-1">Tekan Suara</p>
+                        </div>
+                    </button>
+                </template>
+            </div>
+            
+            <div class="bg-white p-8 rounded-[2.5rem] border border-amber-100 text-center max-w-xl mx-auto shadow-sm">
+                <p class="text-sm font-bold text-slate-700">💡 Petunjuk Orang Tua</p>
+                <p class="text-xs text-slate-500 mt-1">Dampingi adik dengan mengeklik huruf vokal di atas. Browser akan membacakan cara pelafalan huruf dan contoh kata benda pendukungnya secara interaktif!</p>
+            </div>
+        </div>
+
+        <!-- MODULE 2: MENULIS (WRITING DIGITAL WHITEBOARD) -->
+        <div x-show="activeTab === 'menulis'" class="w-full max-w-2xl bg-white rounded-[2.5rem] border border-indigo-100 shadow-xl overflow-hidden p-6 md:p-8 space-y-6"
+             x-data="{
+                 canvas: null,
+                 ctx: null,
+                 drawing: false,
+                 brushColor: '#4f46e5',
+                 brushSize: 12,
+
+                 initCanvas() {
+                     this.canvas = this.$refs.paintCanvas;
+                     this.ctx = this.canvas.getContext('2d');
+                     
+                     // Reset dimensions dynamically to match border wrappers
+                     this.canvas.width = this.canvas.parentElement.clientWidth;
+                     this.canvas.height = 350;
+                     
+                     // Setup nice rounded brush
+                     this.ctx.lineCap = 'round';
+                     this.ctx.lineJoin = 'round';
+                 },
+
+                 startDraw(e) {
+                     this.drawing = true;
+                     this.ctx.beginPath();
+                     const rect = this.canvas.getBoundingClientRect();
+                     const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                     const y = (e.clientY || e.touches[0].clientY) - rect.top;
+                     this.ctx.moveTo(x, y);
+                 },
+
+                 draw(e) {
+                     if (!this.drawing) return;
+                     e.preventDefault();
+                     const rect = this.canvas.getBoundingClientRect();
+                     const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+                     const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+                     
+                     this.ctx.lineTo(x, y);
+                     this.ctx.strokeStyle = this.brushColor;
+                     this.ctx.lineWidth = this.brushSize;
+                     this.ctx.stroke();
+                 },
+
+                 stopDraw() {
+                     this.drawing = false;
+                 },
+
+                 clearCanvas() {
+                     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                     this.speak('Papan tulis dibersihkan');
+                     Alpine.store('toast').info('Papan tulis bersih!');
+                 }
+             }" x-init="setTimeout(() => initCanvas(), 300)">
+            
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">✏️ Papan Coret Menggambar</h3>
+                    <p class="text-xs text-slate-400">Latihan menulis angka 1-5 menggunakan jari atau tetikus di bawah ini.</p>
+                </div>
+                
+                <button @click="clearCanvas()" class="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold text-xs rounded-xl transition">
+                    Hapus Papan
+                </button>
+            </div>
+
+            <!-- Canvas border -->
+            <div class="border-2 border-dashed border-indigo-100 rounded-3xl overflow-hidden bg-slate-50 relative">
+                <!-- Trace Helper dotted watermark -->
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none select-none opacity-10">
+                    <span class="text-[12rem] font-bold text-indigo-950 font-outfit">8</span>
+                </div>
+                
+                <canvas x-ref="paintCanvas" 
+                        @mousedown="startDraw($event)" @mousemove="draw($event)" @mouseup="stopDraw()" @mouseleave="stopDraw()"
+                        @touchstart="startDraw($event)" @touchmove="draw($event)" @touchend="stopDraw()"
+                        class="drawing-canvas w-full h-[350px]"></canvas>
+            </div>
+
+            <!-- Color Palette controls -->
+            <div class="flex items-center justify-between gap-4">
+                <span class="text-xs text-slate-400 font-bold">PILIH WARNA:</span>
+                <div class="flex items-center gap-2">
+                    <template x-for="color in ['#4f46e5', '#ec4899', '#10b981', '#f59e0b', '#000000']">
+                        <button @click="brushColor = color; speak('Ganti warna')"
+                                class="w-8 h-8 rounded-full border-2 transition transform hover:scale-110"
+                                :style="`background-color: ${color}`"
+                                :class="brushColor === color ? 'border-indigo-600 scale-110' : 'border-white'"></button>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODULE 3: BERHITUNG (COUNTING APPLES) -->
+        <div x-show="activeTab === 'berhitung'" class="w-full max-w-xl bg-white rounded-[2.5rem] border border-emerald-100 shadow-xl overflow-hidden p-8 md:p-10 space-y-8" x-transition>
+            <div class="text-center space-y-1">
+                <h3 class="text-xl font-bold text-slate-800">🍎 Berapa Jumlah Apel Ini?</h3>
+                <p class="text-xs text-slate-400">Ayo hitung apel merah di dalam keranjang, lalu tekan angka yang benar!</p>
+            </div>
+
+            <!-- Visual Apples representation -->
+            <div class="bg-gradient-to-b from-emerald-50/50 to-emerald-100/30 p-8 rounded-3xl border border-emerald-50 flex items-center justify-center gap-4 min-h-[140px]">
+                <template x-for="n in appleCount">
+                    <span class="text-5xl animate-bounce-gentle inline-block">🍎</span>
+                </template>
+            </div>
+
+            <!-- Counting Match selection buttons -->
+            <div class="grid grid-cols-5 gap-3">
+                <template x-for="n in 5">
+                    <button @click="checkCount(n)"
+                            class="py-4.5 rounded-2xl border-2 text-2xl font-black transition-all flex items-center justify-center shadow-sm"
+                            :class="selectedCount === n ? (
+                                isCorrectCount ? 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-200' : 'bg-rose-500 border-rose-600 text-white shadow-rose-200'
+                            ) : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800 hover:border-emerald-300'">
+                        <span x-text="n"></span>
+                    </button>
+                </template>
+            </div>
+
+            <!-- Action trigger reset -->
+            <div x-show="isCorrectCount" class="pt-2 flex justify-center">
+                <button @click="generateNewCount(); speak('Mari mulai berhitung kembali!')"
+                        class="px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-2xl shadow-lg shadow-emerald-100 text-xs transition">
+                    Bermain Lagi! 🔄
+                </button>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
