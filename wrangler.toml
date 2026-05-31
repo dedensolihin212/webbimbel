@@ -1,5 +1,5 @@
 # Wrangler Configuration for Cloudflare Pages with Functions
-name = "bintangbelajar"
+name = "webbimbel"
 compatibility_date = "2026-05-31"
 
 [vars]
