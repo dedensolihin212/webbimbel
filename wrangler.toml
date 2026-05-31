@@ -15,7 +15,7 @@ binding = "DB"
 database_name = "bintangbelajar_db"
 database_id = "your-d1-database-uuid-here"
 
-# R2 Storage Binding
-[[r2_buckets]]
-binding = "STORAGE"
-bucket_name = "bintangbelajar-storage"
+# R2 Storage Binding (Disabled for now)
+# [[r2_buckets]]
+# binding = "STORAGE"
+# bucket_name = "bintangbelajar-storage"
