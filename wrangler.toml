@@ -12,7 +12,7 @@ directory = "./"
 # D1 Database Binding
 [[d1_databases]]
 binding = "DB"
-database_name = "webbimbelg"
+database_name = "webbimbel"
 database_id = "7aac3b5a-02ec-4739-ba35-c78643be357a"
 
 # R2 Storage Binding (Disabled for now)
