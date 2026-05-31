@@ -60,12 +60,22 @@
               } catch (e) {
                   // Standard offline simulator fallback
                   console.log('Loading local courses fallback database...');
-                  this.courses = [
-                      { id: 'c-cal-01', title: 'Belajar Membaca & Menulis Ceria', description: 'Modul Calistung interaktif untuk adik-adik TK.', category: 'Calistung', difficulty_level: 'Easy', thumbnail_url: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=400&q=80' },
-                      { id: 'c-sd-01', title: 'Pecahan dan Bangun Datar Dasar', description: 'Matematika SD dengan visual pecahan pizza.', category: 'SD', difficulty_level: 'Medium', thumbnail_url: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=400&q=80' },
-                      { id: 'c-mat-01', title: 'Trik Cepat Aljabar & Geometri', description: 'Trik kilat eliminasi linear dan aljabar dasar.', category: 'Matematika', difficulty_level: 'Hard', thumbnail_url: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=400&q=80' },
-                      { id: 'c-smp-01', title: 'Sistem Organ Tubuh & Tata Surya', description: 'Mempelajari 8 planet luar tata surya secara seru.', category: 'IPA SMP', difficulty_level: 'Medium', thumbnail_url: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=400&q=80' }
-                  ];
+                  const localCourses = JSON.parse(localStorage.getItem('bb_courses') || '[]');
+                  if (localCourses.length > 0) {
+                      this.courses = localCourses.map(c => ({
+                          ...c,
+                          category: c.jenjang === 'TK' ? 'Calistung' : (c.jenjang === 'SD' ? 'SD' : (c.jenjang === 'SMP' ? (c.mapel.toLowerCase().includes('ipa') ? 'IPA SMP' : 'Matematika') : c.jenjang))
+                      }));
+                  } else {
+                      // Seeding default courses if none exist in localStorage
+                      const defaultCourses = [
+                          { id: 'c-cal-01', title: 'Belajar Membaca & Menulis Ceria', description: 'Modul Calistung interaktif untuk adik-adik TK.', category: 'Calistung', difficulty_level: 'Easy', thumbnail_url: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=400&q=80' },
+                          { id: 'c-sd-01', title: 'Pecahan dan Bangun Datar Dasar', description: 'Matematika SD dengan visual pecahan pizza.', category: 'SD', difficulty_level: 'Medium', thumbnail_url: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=400&q=80' },
+                          { id: 'c-mat-01', title: 'Trik Cepat Aljabar & Geometri', description: 'Trik kilat eliminasi linear dan aljabar dasar.', category: 'Matematika', difficulty_level: 'Hard', thumbnail_url: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=400&q=80' },
+                          { id: 'c-smp-01', title: 'Sistem Organ Tubuh & Tata Surya', description: 'Mempelajari 8 planet luar tata surya secara seru.', category: 'IPA SMP', difficulty_level: 'Medium', thumbnail_url: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=400&q=80' }
+                      ];
+                      this.courses = defaultCourses;
+                  }
               } finally {
                   this.loading = false;
               }
@@ -114,9 +124,18 @@
             </a>
             
             <div class="flex items-center gap-4">
+                <!-- Tombol Admin Panel -->
+                <template x-if="$store.auth.user && $store.auth.user.role === 'admin'">
+                    <a href="admin.html" class="text-xs font-bold text-white bg-violet-600 hover:bg-violet-700 px-3.5 py-2.5 rounded-xl transition shadow-md shadow-violet-100 flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                        <span>Panel Admin</span>
+                    </a>
+                </template>
                 <div class="text-right">
                     <p class="text-sm font-bold text-slate-800" x-text="$store.auth.user ? $store.auth.user.name : ''"></p>
-                    <p class="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full inline-block font-bold mt-0.5" x-text="$store.auth.user ? 'Siswa ' + $store.auth.user.grade_level : ''"></p>
+                    <p class="text-[10px] px-2 py-0.5 rounded-full inline-block font-bold mt-0.5"
+                       :class="$store.auth.user && $store.auth.user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-indigo-100 text-indigo-800'"
+                       x-text="$store.auth.user ? ($store.auth.user.role === 'admin' ? 'Administrator' : 'Siswa ' + $store.auth.user.grade_level) : ''"></p>
                 </div>
                 <button @click="$store.auth.logout()" class="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 px-3 py-2 rounded-xl transition">Keluar</button>
             </div>
@@ -166,8 +185,18 @@
             <p class="text-xs text-slate-400 mt-3 font-semibold">Mengambil daftar kelas...</p>
         </div>
 
+        <!-- Empty State if no courses -->
+        <div x-show="!loading && filteredCourses().length === 0" class="text-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm space-y-4 max-w-lg mx-auto" x-transition>
+            <span class="text-5xl inline-block animate-bounce">🎒</span>
+            <h3 class="text-xl font-bold font-outfit text-slate-800">Kelas Belajar Masih Kosong</h3>
+            <p class="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">Administrator belum menginput kelas kurikulum merdeka nyata. Silakan masuk menggunakan akun Administrator untuk mengisi modul pertama.</p>
+            <template x-if="$store.auth.user && $store.auth.user.role === 'admin'">
+                <a href="admin.html" class="inline-block px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-100">Ke Panel Admin</a>
+            </template>
+        </div>
+
         <!-- Grid Listings -->
-        <div x-show="!loading" class="grid md:grid-cols-3 gap-8" x-transition>
+        <div x-show="!loading && filteredCourses().length > 0" class="grid md:grid-cols-3 gap-8" x-transition>
             <template x-for="course in filteredCourses()" :key="course.id">
                 <div class="group bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col">
                     <div class="aspect-video w-full overflow-hidden bg-slate-100 relative">

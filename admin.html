@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Admin BintangBelajar - CRUD Portal</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Alpine.js Core -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="assets/css/main.css">
+    <!-- Custom JS -->
+    <script src="assets/js/main.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen font-inter"
+      x-data="{
+          activeTab: 'dashboard',
+          stats: { usersCount: 0, coursesCount: 0, lessonsCount: 0, quizzesCount: 0 },
+          courses: [],
+          lessons: [],
+          users: [],
+          quizzes: [],
+          isOffline: false,
+          loading: false,
+
+          // Modals state
+          showCourseModal: false,
+          showLessonModal: false,
+          courseForm: { isEdit: false, id: '', title: '', description: '', jenjang: 'SD', grade: '1', mapel: '', semester: 1, sort_order: 1, thumbnail_url: '' },
+          lessonForm: { isEdit: false, id: '', course_id: '', title: '', description: '', video_url: '', video_type: 'youtube', materi_text: '', sort_order: 1 },
+
+          // Selected items for drill down
+          selectedCourseId: '',
+          selectedQuizLessonId: '',
+          
+          // Quiz Builder state
+          quizTitle: '',
+          quizQuestions: [], // Array of { question: '', options: ['', '', '', ''], answer: 0 }
+
+          async init() {
+              // Auth Guard
+              setTimeout(async () => {
+                  if (!Alpine.store('auth').user || Alpine.store('auth').user.role !== 'admin') {
+                      Alpine.store('toast').error('Akses ditolak! Halaman ini hanya untuk Administrator.');
+                      window.location.href = 'dashboard.html';
+                      return;
+                  }
+                  await this.loadAllData();
+              }, 400);
+          },
+
+          async loadAllData() {
+              this.loading = true;
+              try {
+                  const headers = { 'Authorization': `Bearer ${Alpine.store('auth').token}` };
+                  
+                  // Try to load stats from D1
+                  const statsRes = await fetch('/api/admin/stats', { headers });
+                  if (statsRes.ok) {
+                      const statsData = await statsRes.json();
+                      this.stats = statsData.stats;
+                      this.isOffline = false;
+                  } else {
+                      throw new Error('D1 not ready');
+                  }
+
+                  // Load courses
+                  const coursesRes = await fetch('/api/admin/courses', { headers });
+                  const coursesData = await coursesRes.json();
+                  this.courses = coursesData.courses;
+
+                  // Load all lessons
+                  const lessonsRes = await fetch('/api/admin/lessons', { headers });
+                  const lessonsData = await lessonsRes.json();
+                  this.lessons = lessonsData.lessons;
+
+                  // Load users
+                  const usersRes = await fetch('/api/admin/users', { headers });
+                  const usersData = await usersRes.json();
+                  this.users = usersData.users;
+
+              } catch (e) {
+                  // LocalStorage offline fallback simulator
+                  console.log('D1 API Offline / Belum dideploy. Beralih ke Simulator Luring LocalStorage.');
+                  this.isOffline = true;
+                  this.syncOfflineStorage();
+              } finally {
+                  this.loading = false;
+              }
+          },
+
+          // Offline Database Simulator Sync
+          syncOfflineStorage() {
+              if (!localStorage.getItem('bb_courses')) {
+                  // Seed initial empty state or simple samples
+                  localStorage.setItem('bb_courses', JSON.stringify([]));
+                  localStorage.setItem('bb_lessons', JSON.stringify([]));
+                  localStorage.setItem('bb_quizzes', JSON.stringify([]));
+              }
+
+              this.courses = JSON.parse(localStorage.getItem('bb_courses') || '[]');
+              this.lessons = JSON.parse(localStorage.getItem('bb_lessons') || '[]');
+              
+              // Load dynamic stats based on localStorage lengths
+              const localUsers = JSON.parse(localStorage.getItem('bb_offline_users') || '[]');
+              const localQuizzes = JSON.parse(localStorage.getItem('bb_quizzes') || '[]');
+              
+              this.stats = {
+                  usersCount: localUsers.length + 1, // Include budi
+                  coursesCount: this.courses.length,
+                  lessonsCount: this.lessons.length,
+                  quizzesCount: localQuizzes.length
+              };
+
+              this.users = [
+                  { id: 'usr-budi', name: 'Budi Pratama', email: 'budi@gmail.com', role: 'student', grade_level: 'SD-4', created_at: '2026-05-31 08:30:00' },
+                  ...localUsers
+              ];
+          },
+
+          // COURSE CRUD
+          openAddCourse() {
+              this.courseForm = { isEdit: false, id: 'c-' + Date.now().toString().slice(-6), title: '', description: '', jenjang: 'SD', grade: '1', mapel: '', semester: 1, sort_order: this.courses.length + 1, thumbnail_url: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=600&q=80' };
+              this.showCourseModal = true;
+          },
+
+          openEditCourse(course) {
+              this.courseForm = { isEdit: true, ...course };
+              this.showCourseModal = true;
+          },
+
+          async saveCourse() {
+              if (!this.courseForm.title || !this.courseForm.mapel) {
+                  Alpine.store('toast').warning('Judul dan Mata Pelajaran wajib diisi!');
+                  return;
+              }
+
+              try {
+                  if (this.isOffline) {
+                      let localCourses = JSON.parse(localStorage.getItem('bb_courses') || '[]');
+                      if (this.courseForm.isEdit) {
+                          localCourses = localCourses.map(c => c.id === this.courseForm.id ? { ...this.courseForm } : c);
+                          Alpine.store('toast').success('Kursus berhasil diperbarui (Offline)');
+                      } else {
+                          localCourses.push({ ...this.courseForm });
+                          Alpine.store('toast').success('Kursus berhasil ditambahkan (Offline)');
+                      }
+                      localStorage.setItem('bb_courses', JSON.stringify(localCourses));
+                      this.syncOfflineStorage();
+                  } else {
+                      const method = this.courseForm.isEdit ? 'PUT' : 'POST';
+                      const res = await fetch('/api/admin/courses', {
+                          method,
+                          headers: { 
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${Alpine.store('auth').token}`
+                          },
+                          body: JSON.stringify(this.courseForm)
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                          Alpine.store('toast').success(data.message);
+                          await this.loadAllData();
+                      } else {
+                          Alpine.store('toast').error(data.message);
+                      }
+                  }
+                  this.showCourseModal = false;
+              } catch (err) {
+                  Alpine.store('toast').error('Gagal menyimpan kursus: ' + err.message);
+              }
+          },
+
+          async deleteCourse(id) {
+              if (!confirm('Apakah Anda yakin ingin menghapus kursus ini beserta semua materi didalamnya?')) return;
+
+              try {
+                  if (this.isOffline) {
+                      let localCourses = JSON.parse(localStorage.getItem('bb_courses') || '[]');
+                      let localLessons = JSON.parse(localStorage.getItem('bb_lessons') || '[]');
+                      
+                      localCourses = localCourses.filter(c => c.id !== id);
+                      localLessons = localLessons.filter(l => l.course_id !== id);
+                      
+                      localStorage.setItem('bb_courses', JSON.stringify(localCourses));
+                      localStorage.setItem('bb_lessons', JSON.stringify(localLessons));
+                      
+                      Alpine.store('toast').success('Kursus & Materi terkait berhasil dihapus (Offline)');
+                      this.syncOfflineStorage();
+                  } else {
+                      const res = await fetch(`/api/admin/courses?id=${id}`, {
+                          method: 'DELETE',
+                          headers: { 'Authorization': `Bearer ${Alpine.store('auth').token}` }
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                          Alpine.store('toast').success(data.message);
+                          await this.loadAllData();
+                      } else {
+                          Alpine.store('toast').error(data.message);
+                      }
+                  }
+              } catch (err) {
+                  Alpine.store('toast').error('Gagal menghapus kursus: ' + err.message);
+              }
+          },
+
+          // LESSONS CRUD
+          filteredLessons() {
+              if (!this.selectedCourseId) return [];
+              return this.lessons.filter(l => l.course_id === this.selectedCourseId);
+          },
+
+          openAddLesson() {
+              if (!this.selectedCourseId) {
+                  Alpine.store('toast').warning('Pilih Kursus terlebih dahulu!');
+                  return;
+              }
+              const currentCourseLessons = this.filteredLessons();
+              this.lessonForm = { 
+                  isEdit: false, 
+                  id: 'l-' + Date.now().toString().slice(-6), 
+                  course_id: this.selectedCourseId, 
+                  title: '', 
+                  description: '', 
+                  video_url: 'https://www.youtube.com/watch?v=NfUUlNsZBT8', 
+                  video_type: 'youtube', 
+                  materi_text: '', 
+                  sort_order: currentCourseLessons.length + 1 
+              };
+              this.showLessonModal = true;
+          },
+
+          openEditLesson(lesson) {
+              this.lessonForm = { isEdit: true, ...lesson };
+              this.showLessonModal = true;
+          },
+
+          async saveLesson() {
+              if (!this.lessonForm.title) {
+                  Alpine.store('toast').warning('Judul materi wajib diisi!');
+                  return;
+              }
+
+              try {
+                  if (this.isOffline) {
+                      let localLessons = JSON.parse(localStorage.getItem('bb_lessons') || '[]');
+                      if (this.lessonForm.isEdit) {
+                          localLessons = localLessons.map(l => l.id === this.lessonForm.id ? { ...this.lessonForm } : l);
+                          Alpine.store('toast').success('Materi berhasil diperbarui (Offline)');
+                      } else {
+                          localLessons.push({ ...this.lessonForm });
+                          Alpine.store('toast').success('Materi berhasil ditambahkan (Offline)');
+                      }
+                      localStorage.setItem('bb_lessons', JSON.stringify(localLessons));
+                      this.syncOfflineStorage();
+                  } else {
+                      const method = this.lessonForm.isEdit ? 'PUT' : 'POST';
+                      const res = await fetch('/api/admin/lessons', {
+                          method,
+                          headers: { 
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${Alpine.store('auth').token}`
+                          },
+                          body: JSON.stringify(this.lessonForm)
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                          Alpine.store('toast').success(data.message);
+                          await this.loadAllData();
+                      } else {
+                          Alpine.store('toast').error(data.message);
+                      }
+                  }
+                  this.showLessonModal = false;
+              } catch (err) {
+                  Alpine.store('toast').error('Gagal menyimpan materi: ' + err.message);
+              }
+          },
+
+          async deleteLesson(id) {
+              if (!confirm('Apakah Anda yakin ingin menghapus materi ini?')) return;
+
+              try {
+                  if (this.isOffline) {
+                      let localLessons = JSON.parse(localStorage.getItem('bb_lessons') || '[]');
+                      localLessons = localLessons.filter(l => l.id !== id);
+                      localStorage.setItem('bb_lessons', JSON.stringify(localLessons));
+                      
+                      // Hapus kuis terkait
+                      let localQuizzes = JSON.parse(localStorage.getItem('bb_quizzes') || '[]');
+                      localQuizzes = localQuizzes.filter(q => q.lesson_id !== id);
+                      localStorage.setItem('bb_quizzes', JSON.stringify(localQuizzes));
+
+                      Alpine.store('toast').success('Materi berhasil dihapus (Offline)');
+                      this.syncOfflineStorage();
+                  } else {
+                      const res = await fetch(`/api/admin/lessons?id=${id}`, {
+                          method: 'DELETE',
+                          headers: { 'Authorization': `Bearer ${Alpine.store('auth').token}` }
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                          Alpine.store('toast').success(data.message);
+                          await this.loadAllData();
+                      } else {
+                          Alpine.store('toast').error(data.message);
+                      }
+                  }
+              } catch (err) {
+                  Alpine.store('toast').error('Gagal menghapus materi: ' + err.message);
+              }
+          },
+
+          // QUIZ MANAGEMENT
+          getCourseLessonsForQuiz() {
+              if (!this.selectedCourseId) return [];
+              return this.lessons.filter(l => l.course_id === this.selectedCourseId);
+          },
+
+          async loadQuizForLesson() {
+              if (!this.selectedQuizLessonId) {
+                  this.quizTitle = '';
+                  this.quizQuestions = [];
+                  return;
+              }
+
+              this.loading = true;
+              try {
+                  if (this.isOffline) {
+                      const localQuizzes = JSON.parse(localStorage.getItem('bb_quizzes') || '[]');
+                      const q = localQuizzes.find(item => item.lesson_id === this.selectedQuizLessonId);
+                      if (q) {
+                          this.quizTitle = q.title;
+                          this.quizQuestions = JSON.parse(q.questions_json);
+                      } else {
+                          // Buat template kuis kosong
+                          const lesson = this.lessons.find(l => l.id === this.selectedQuizLessonId);
+                          this.quizTitle = 'Kuis: ' + (lesson ? lesson.title : 'Materi');
+                          this.quizQuestions = [];
+                      }
+                  } else {
+                      const res = await fetch(`/api/admin/quizzes?lesson_id=${this.selectedQuizLessonId}`, {
+                          headers: { 'Authorization': `Bearer ${Alpine.store('auth').token}` }
+                      });
+                      const data = await res.json();
+                      if (data.success && data.quiz) {
+                          this.quizTitle = data.quiz.title;
+                          this.quizQuestions = JSON.parse(data.quiz.questions_json);
+                      } else {
+                          const lesson = this.lessons.find(l => l.id === this.selectedQuizLessonId);
+                          this.quizTitle = 'Kuis: ' + (lesson ? lesson.title : 'Materi');
+                          this.quizQuestions = [];
+                      }
+                  }
+              } catch (err) {
+                  Alpine.store('toast').error('Gagal mengambil kuis: ' + err.message);
+              } finally {
+                  this.loading = false;
+              }
+          },
+
+          addQuizQuestion() {
+              this.quizQuestions.push({
+                  question: 'Tulis pertanyaan kuis di sini...',
+                  options: ['Pilihan A', 'Pilihan B', 'Pilihan C', 'Pilihan D'],
+                  answer: 0
+              });
+          },
+
+          removeQuizQuestion(index) {
+              this.quizQuestions.splice(index, 1);
+          },
+
+          async saveQuiz() {
+              if (!this.selectedQuizLessonId) {
+                  Alpine.store('toast').warning('Silakan pilih materi terlebih dahulu!');
+                  return;
+              }
+              if (!this.quizTitle) {
+                  Alpine.store('toast').warning('Judul Kuis wajib diisi!');
+                  return;
+              }
+              if (this.quizQuestions.length === 0) {
+                  Alpine.store('toast').warning('Kuis harus memiliki minimal 1 soal!');
+                  return;
+              }
+
+              const questions_json = JSON.stringify(this.quizQuestions);
+
+              try {
+                  if (this.isOffline) {
+                      let localQuizzes = JSON.parse(localStorage.getItem('bb_quizzes') || '[]');
+                      const existingIdx = localQuizzes.findIndex(q => q.lesson_id === this.selectedQuizLessonId);
+                      
+                      const quizPayload = {
+                          id: 'q-' + this.selectedQuizLessonId,
+                          lesson_id: this.selectedQuizLessonId,
+                          title: this.quizTitle,
+                          questions_json
+                      };
+
+                      if (existingIdx > -1) {
+                          localQuizzes[existingIdx] = quizPayload;
+                      } else {
+                          localQuizzes.push(quizPayload);
+                      }
+
+                      localStorage.setItem('bb_quizzes', JSON.stringify(localQuizzes));
+                      Alpine.store('toast').success('Kuis berhasil disimpan (Offline)');
+                      this.syncOfflineStorage();
+                  } else {
+                      const res = await fetch('/api/admin/quizzes', {
+                          method: 'POST',
+                          headers: { 
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${Alpine.store('auth').token}`
+                          },
+                          body: JSON.stringify({
+                              lesson_id: this.selectedQuizLessonId,
+                              title: this.quizTitle,
+                              questions_json
+                          })
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                          Alpine.store('toast').success(data.message);
+                          await this.loadAllData();
+                      } else {
+                          Alpine.store('toast').error(data.message);
+                      }
+                  }
+              } catch (err) {
+                  Alpine.store('toast').error('Gagal menyimpan kuis: ' + err.message);
+              }
+          }
+      }">
+
+    <!-- Global Toast Component -->
+    <div class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
+        <template x-for="toast in $store.toast.list" :key="toast.id">
+            <div class="p-4 rounded-xl shadow-lg border text-sm font-medium flex items-center gap-3 pointer-events-auto transition duration-300"
+                 :class="{
+                    'bg-emerald-50 text-emerald-800 border-emerald-200': toast.type === 'success',
+                    'bg-rose-50 text-rose-800 border-rose-200': toast.type === 'error',
+                    'bg-sky-50 text-sky-800 border-sky-200': toast.type === 'info',
+                    'bg-amber-50 text-amber-800 border-amber-200': toast.type === 'warning'
+                 }">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span x-text="toast.message"></span>
+            </div>
+        </template>
+    </div>
+
+    <!-- Layout Wrapper -->
+    <div class="flex flex-col md:flex-row min-h-screen">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="w-full md:w-64 bg-slate-900 text-slate-100 flex flex-col justify-between p-6">
+            <div class="space-y-8">
+                <!-- Branding logo -->
+                <a href="dashboard.html" class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-violet-500 to-pink-500 flex items-center justify-center text-white text-sm">⭐</div>
+                    <span class="text-lg font-bold font-outfit bg-gradient-to-r from-violet-400 to-pink-400 bg-clip-text text-transparent">BintangAdmin</span>
+                </a>
+
+                <!-- Offline banner indicator -->
+                <div x-show="isOffline" class="p-3 bg-amber-500/20 border border-amber-500/30 text-amber-300 rounded-xl text-xs flex flex-col gap-1">
+                    <p class="font-bold">⚠️ Mode Simulator</p>
+                    <p class="opacity-80">Cloudflare D1 tidak terdeteksi. Data disimpan di memori browser.</p>
+                </div>
+
+                <!-- Navigation List -->
+                <nav class="flex flex-col gap-2">
+                    <button @click="activeTab = 'dashboard'" 
+                            class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition"
+                            :class="activeTab === 'dashboard' ? 'bg-violet-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'">
+                        <span class="text-lg">📊</span> Ringkasan
+                    </button>
+                    <button @click="activeTab = 'courses'" 
+                            class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition"
+                            :class="activeTab === 'courses' ? 'bg-violet-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'">
+                        <span class="text-lg">🎓</span> Kelas (Courses)
+                    </button>
+                    <button @click="activeTab = 'lessons'" 
+                            class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition"
+                            :class="activeTab === 'lessons' ? 'bg-violet-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'">
+                        <span class="text-lg">📖</span> Materi (Lessons)
+                    </button>
+                    <button @click="activeTab = 'quizzes'" 
+                            class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition"
+                            :class="activeTab === 'quizzes' ? 'bg-violet-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'">
+                        <span class="text-lg">❓</span> Soal Kuis (Quizzes)
+                    </button>
+                    <button @click="activeTab = 'users'" 
+                            class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition"
+                            :class="activeTab === 'users' ? 'bg-violet-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'">
+                        <span class="text-lg">👥</span> Siswa
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Footer user profile logout -->
+            <div class="border-t border-slate-800 pt-6 mt-6 flex items-center justify-between">
+                <div class="text-left">
+                    <p class="text-xs text-slate-500 font-bold uppercase tracking-wider">MASUK SEBAGAI</p>
+                    <p class="text-sm font-bold text-slate-200 line-clamp-1" x-text="$store.auth.user ? $store.auth.user.name : ''"></p>
+                </div>
+                <button @click="$store.auth.logout()" class="text-xs bg-slate-800 hover:bg-rose-950 hover:text-rose-400 border border-slate-700 px-3 py-2 rounded-xl text-slate-400 transition font-bold">
+                    Keluar
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Dashboard Viewport -->
+        <main class="flex-1 bg-slate-50 p-6 md:p-12 overflow-y-auto max-w-7xl">
+            
+            <!-- Dynamic Spinner while Loading -->
+            <div x-show="loading && activeTab !== 'quizzes'" class="fixed inset-0 bg-white/50 z-40 flex items-center justify-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600"></div>
+            </div>
+
+            <!-- TAB: DASHBOARD RINGKASAN -->
+            <div x-show="activeTab === 'dashboard'" class="space-y-8" x-transition>
+                <!-- Hero section Header -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-3xl font-extrabold font-outfit text-slate-800">Panel Administrator</h1>
+                        <p class="text-sm text-slate-500 mt-1">Kelola seluruh kurikulum, video pembelajaran, dan soal kuis BintangBelajar secara dinamis.</p>
+                    </div>
+                    <button @click="loadAllData()" class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition flex items-center gap-1 shadow-sm">
+                        🔄 Refresh Data
+                    </button>
+                </div>
+
+                <!-- Stats counters grid -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex items-center gap-4">
+                        <span class="text-4xl">🎓</span>
+                        <div>
+                            <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Total Kelas</p>
+                            <p class="text-3xl font-bold font-outfit text-slate-800" x-text="stats.coursesCount"></p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex items-center gap-4">
+                        <span class="text-4xl">📖</span>
+                        <div>
+                            <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Total Materi</p>
+                            <p class="text-3xl font-bold font-outfit text-slate-800" x-text="stats.lessonsCount"></p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex items-center gap-4">
+                        <span class="text-4xl">❓</span>
+                        <div>
+                            <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Total Kuis</p>
+                            <p class="text-3xl font-bold font-outfit text-slate-800" x-text="stats.quizzesCount"></p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex items-center gap-4">
+                        <span class="text-4xl">👥</span>
+                        <div>
+                            <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Siswa Aktif</p>
+                            <p class="text-3xl font-bold font-outfit text-slate-800" x-text="stats.usersCount"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Welcome tutorial message card -->
+                <div class="bg-gradient-to-tr from-violet-600 to-indigo-700 rounded-3xl p-8 text-white relative overflow-hidden shadow-lg">
+                    <div class="absolute -right-20 -bottom-20 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
+                    <h2 class="text-xl font-bold font-outfit mb-3">Cara Menginput Kurikulum Baru:</h2>
+                    <ul class="space-y-2 text-xs md:text-sm text-indigo-100/90 list-decimal list-inside">
+                        <li>Buka tab <strong>Kelas (Courses)</strong>, buat kelas mapel baru (Contoh: "Pendidikan Pancasila SD Kelas 1").</li>
+                        <li>Buka tab <strong>Materi (Lessons)</strong>, pilih kelas tersebut, lalu tambahkan materi sub-bab pelajaran. Sematkan link video YouTube orisinal agar siswa bisa memutar dan menonton video tutorial di layarnya.</li>
+                        <li>Buka tab <strong>Soal Kuis (Quizzes)</strong>, buat soal pilihan berganda secara visual untuk materi pelajaran tersebut.</li>
+                        <li>Siswa Anda akan langsung melihat konten nyata ini pada Dashboard pembelajaran mereka secara instan!</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- TAB: COURSES MANAGEMENT -->
+            <div x-show="activeTab === 'courses'" class="space-y-6" x-transition>
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-bold font-outfit text-slate-800">Manajemen Kelas (Courses)</h2>
+                        <p class="text-xs text-slate-400">Tambahkan, ubah, dan susun tingkatan mata pelajaran kurikulum merdeka.</p>
+                    </div>
+                    <button @click="openAddCourse()" class="px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl text-xs font-bold transition flex items-center gap-1 shadow-md shadow-violet-100">
+                        ➕ Tambah Kelas Baru
+                    </button>
+                </div>
+
+                <!-- Empty State -->
+                <div x-show="courses.length === 0" class="text-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm space-y-3">
+                    <span class="text-5xl inline-block animate-bounce">📭</span>
+                    <h3 class="text-lg font-bold text-slate-800">Belum ada Kelas terdaftar</h3>
+                    <p class="text-xs text-slate-400 max-w-sm mx-auto">Klik tombol 'Tambah Kelas Baru' di pojok kanan atas untuk mengisi modul kelas pertama di platform ini.</p>
+                </div>
+
+                <!-- Grid of existing courses -->
+                <div x-show="courses.length > 0" class="grid md:grid-cols-3 gap-6">
+                    <template x-for="course in courses" :key="course.id">
+                        <div class="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm flex flex-col justify-between">
+                            <div>
+                                <div class="aspect-video w-full overflow-hidden bg-slate-100 relative">
+                                    <img :src="course.thumbnail_url" class="w-full h-full object-cover">
+                                    <span class="absolute top-3 left-3 bg-slate-900/80 text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase" x-text="course.jenjang + ' - Kelas ' + course.grade"></span>
+                                </div>
+                                <div class="p-5 space-y-2">
+                                    <h4 class="text-md font-bold text-slate-800 line-clamp-1" x-text="course.title"></h4>
+                                    <p class="text-xs text-slate-500 line-clamp-2 leading-relaxed" x-text="course.description"></p>
+                                    <p class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded inline-block font-bold" x-text="course.mapel"></p>
+                                </div>
+                            </div>
+                            
+                            <div class="p-5 border-t border-slate-100 flex items-center justify-between gap-2">
+                                <button @click="openEditCourse(course)" class="text-xs bg-slate-50 text-violet-600 hover:bg-violet-50 font-bold px-4 py-2 rounded-xl transition">
+                                    ⚙️ Edit
+                                </button>
+                                <button @click="deleteCourse(course.id)" class="text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold px-4 py-2 rounded-xl transition">
+                                    🗑️ Hapus
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- TAB: LESSONS MANAGEMENT -->
+            <div x-show="activeTab === 'lessons'" class="space-y-6" x-transition>
+                <div>
+                    <h2 class="text-2xl font-bold font-outfit text-slate-800">Manajemen Materi Pelajaran (Lessons)</h2>
+                    <p class="text-xs text-slate-400">Unggah ringkasan materi pelajaran, urutan, serta sematkan video tutorial.</p>
+                </div>
+
+                <!-- Dropdown selector course -->
+                <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Pilih Kelas Terlebih Dahulu:</label>
+                    <select x-model="selectedCourseId" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-violet-500 outline-none transition">
+                        <option value="">-- Silakan Pilih Kelas --</option>
+                        <template x-for="course in courses" :key="course.id">
+                            <option :value="course.id" x-text="`[${course.jenjang} Kelas ${course.grade}] - ${course.title}`"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <!-- Section content if course is selected -->
+                <div x-show="selectedCourseId" class="space-y-6" x-transition>
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <span>📖</span> Daftar Sub-Materi Pelajaran:
+                        </h3>
+                        <button @click="openAddLesson()" class="px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl text-xs font-bold transition flex items-center gap-1 shadow-md shadow-violet-100">
+                            ➕ Tambah Materi Baru
+                        </button>
+                    </div>
+
+                    <!-- Empty state lessons -->
+                    <div x-show="filteredLessons().length === 0" class="text-center py-16 bg-white rounded-3xl border border-slate-100 shadow-sm space-y-2">
+                        <span class="text-4xl inline-block animate-pulse">📚</span>
+                        <h4 class="text-md font-bold text-slate-800">Belum ada materi pelajaran</h4>
+                        <p class="text-xs text-slate-400 max-w-sm mx-auto">Materi pelajaran pada kelas ini masih kosong. Silakan tambahkan satu sub-bab materi di atas.</p>
+                    </div>
+
+                    <!-- Lessons list table -->
+                    <div x-show="filteredLessons().length > 0" class="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-100">
+                                    <th class="p-5">Urutan</th>
+                                    <th class="p-5">Judul Sub-Bab</th>
+                                    <th class="p-5">Video Tutorial</th>
+                                    <th class="p-5 text-right">Opsi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="lesson in filteredLessons()" :key="lesson.id">
+                                    <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
+                                        <td class="p-5 font-bold text-slate-400 text-sm" x-text="`Ke-${lesson.sort_order}`"></td>
+                                        <td class="p-5">
+                                            <p class="text-sm font-bold text-slate-800" x-text="lesson.title"></p>
+                                            <p class="text-xs text-slate-400 line-clamp-1 mt-0.5" x-text="lesson.description"></p>
+                                        </td>
+                                        <td class="p-5">
+                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold"
+                                                  :class="{
+                                                      'bg-emerald-50 text-emerald-700': lesson.video_type === 'youtube',
+                                                      'bg-sky-50 text-sky-700': lesson.video_type === 'direct',
+                                                      'bg-slate-100 text-slate-500': lesson.video_type === 'none'
+                                                  }" x-text="lesson.video_type.toUpperCase()"></span>
+                                            <span class="text-xs text-slate-400 ml-1 truncate max-w-[200px] inline-block align-middle" x-text="lesson.video_url || '-'"></span>
+                                        </td>
+                                        <td class="p-5 text-right space-x-1">
+                                            <button @click="openEditLesson(lesson)" class="text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition">Edit</button>
+                                            <button @click="deleteLesson(lesson.id)" class="text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition">Hapus</button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: QUIZZES MANAGEMENT -->
+            <div x-show="activeTab === 'quizzes'" class="space-y-6" x-transition>
+                <div>
+                    <h2 class="text-2xl font-bold font-outfit text-slate-800">Pembuat Soal Kuis (Quiz Builder)</h2>
+                    <p class="text-xs text-slate-400">Buat soal-soal latihan pilihan ganda secara interaktif untuk setiap materi pelajaran.</p>
+                </div>
+
+                <!-- Selectors course and lesson -->
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-2">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Langkah 1: Pilih Kelas</label>
+                        <select x-model="selectedCourseId" @change="selectedQuizLessonId = ''; loadQuizForLesson()" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-2xl text-sm font-medium outline-none transition">
+                            <option value="">-- Silakan Pilih Kelas --</option>
+                            <template x-for="course in courses" :key="course.id">
+                                <option :value="course.id" x-text="`[${course.jenjang} Kelas ${course.grade}] - ${course.title}`"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-2">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Langkah 2: Pilih Sub-Bab Pelajaran</label>
+                        <select x-model="selectedQuizLessonId" @change="loadQuizForLesson()" :disabled="!selectedCourseId" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-2xl text-sm font-medium outline-none disabled:opacity-50 transition">
+                            <option value="">-- Silakan Pilih Materi --</option>
+                            <template x-for="lesson in getCourseLessonsForQuiz()" :key="lesson.id">
+                                <option :value="lesson.id" x-text="lesson.title"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Quiz Editor UI if Lesson Selected -->
+                <div x-show="selectedQuizLessonId" class="space-y-6" x-transition>
+                    <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-6">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-100">
+                            <div class="flex-1 w-full space-y-2">
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Kuis / Judul:</label>
+                                <input type="text" x-model="quizTitle" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-violet-500 transition">
+                            </div>
+                            <button @click="saveQuiz()" class="w-full md:w-auto px-6 py-3.5 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-violet-100 self-end">
+                                💾 Simpan Kuis Ini
+                            </button>
+                        </div>
+
+                        <!-- Quiz Builder -->
+                        <div class="space-y-6">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Daftar Soal Kuis (<span x-text="quizQuestions.length"></span> Soal)</h3>
+                                <button @click="addQuizQuestion()" class="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white font-bold rounded-xl text-xs transition flex items-center gap-1">
+                                    ➕ Tambah Soal Baru
+                                </button>
+                            </div>
+
+                            <!-- Empty question state -->
+                            <div x-show="quizQuestions.length === 0" class="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-1">
+                                <p class="text-sm font-bold text-slate-500">Kuis ini belum memiliki soal.</p>
+                                <p class="text-xs text-slate-400">Tekan tombol 'Tambah Soal Baru' untuk mulai menyusun.</p>
+                            </div>
+
+                            <!-- Questions list builder -->
+                            <div class="space-y-6">
+                                <template x-for="(q, index) in quizQuestions" :key="index">
+                                    <div class="p-6 bg-slate-50 border border-slate-200 rounded-3xl space-y-4 relative">
+                                        <!-- Delete Question floating button -->
+                                        <button @click="removeQuizQuestion(index)" class="absolute top-6 right-6 text-rose-500 hover:text-rose-700 bg-rose-50 p-2 rounded-xl transition text-xs font-bold flex items-center gap-1">
+                                            🗑️ Hapus Soal
+                                        </button>
+
+                                        <!-- Question Title input -->
+                                        <div class="space-y-1">
+                                            <span class="text-xs font-bold text-slate-400" x-text="`PERTANYAAN ${index + 1}`"></span>
+                                            <textarea x-model="q.question" rows="2" class="w-full bg-white border border-slate-200 p-3 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-violet-500 transition"></textarea>
+                                        </div>
+
+                                        <!-- Options inputs -->
+                                        <div class="grid md:grid-cols-2 gap-4">
+                                            <template x-for="(opt, optIdx) in q.options" :key="optIdx">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-xs font-extrabold text-slate-400 w-6" x-text="['A','B','C','D'][optIdx]"></span>
+                                                    <input type="text" x-model="q.options[optIdx]" class="flex-1 bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-violet-500 transition">
+                                                </div>
+                                            </template>
+                                        </div>
+
+                                        <!-- Correct answer index selector -->
+                                        <div class="flex items-center gap-4 bg-white p-3 rounded-xl border border-slate-100">
+                                            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Kunci Jawaban Benar:</label>
+                                            <select x-model.number="q.answer" class="bg-slate-50 border border-slate-200 p-1.5 rounded-lg text-xs font-bold text-violet-700 outline-none">
+                                                <option value="0">Pilihan A</option>
+                                                <option value="1">Pilihan B</option>
+                                                <option value="2">Pilihan C</option>
+                                                <option value="3">Pilihan D</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: SISWA LIST -->
+            <div x-show="activeTab === 'users'" class="space-y-6" x-transition>
+                <div>
+                    <h2 class="text-2xl font-bold font-outfit text-slate-800">Daftar Siswa Terdaftar</h2>
+                    <p class="text-xs text-slate-400">Lihat seluruh siswa terdaftar pada bimbingan belajar BintangBelajar.</p>
+                </div>
+
+                <div class="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-100">
+                                <th class="p-5">ID Siswa</th>
+                                <th class="p-5">Nama Lengkap</th>
+                                <th class="p-5">Email</th>
+                                <th class="p-5">Jenjang/Kelas</th>
+                                <th class="p-5">Tanggal Bergabung</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="usr in users" :key="usr.id">
+                                <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
+                                    <td class="p-5 text-xs font-mono text-slate-400" x-text="usr.id"></td>
+                                    <td class="p-5 text-sm font-bold text-slate-800" x-text="usr.name"></td>
+                                    <td class="p-5 text-sm text-slate-500" x-text="usr.email"></td>
+                                    <td class="p-5">
+                                        <span class="bg-indigo-50 text-indigo-700 text-xs px-2.5 py-1 rounded-full font-bold" x-text="usr.grade_level"></span>
+                                    </td>
+                                    <td class="p-5 text-xs text-slate-400" x-text="usr.created_at || '-'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MODAL: ADD / EDIT COURSE -->
+    <div x-show="showCourseModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" x-transition>
+        <div class="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto" @click.away="showCourseModal = false">
+            <button @click="showCourseModal = false" class="absolute top-6 right-6 text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
+            
+            <h3 class="text-xl font-bold font-outfit text-slate-800 mb-6" x-text="courseForm.isEdit ? '⚙️ Edit Modul Kelas' : '➕ Tambah Kelas Baru'"></h3>
+            
+            <div class="space-y-4 text-left">
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">ID Modul (Huruf Kecil & Strip):</label>
+                    <input type="text" x-model="courseForm.id" :disabled="courseForm.isEdit" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-mono outline-none disabled:opacity-50">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Judul Kelas:</label>
+                    <input type="text" x-model="courseForm.title" placeholder="Contoh: Belajar Berhitung Awal" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm font-semibold outline-none">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Deskripsi Singkat:</label>
+                    <textarea x-model="courseForm.description" rows="2" placeholder="Tulis deskripsi kelas..." class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-medium outline-none"></textarea>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Jenjang:</label>
+                        <select x-model="courseForm.jenjang" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-bold outline-none">
+                            <option value="TK">TK</option>
+                            <option value="SD">SD</option>
+                            <option value="SMP">SMP</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Kelas/Tingkat:</label>
+                        <select x-model="courseForm.grade" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-bold outline-none">
+                            <template x-if="courseForm.jenjang === 'TK'">
+                                <option value="TK">TK (Calistung/Hijaiyah)</option>
+                            </template>
+                            <template x-if="courseForm.jenjang === 'SD'">
+                                <template x-for="g in ['1','2','3','4','5','6']">
+                                    <option :value="g" x-text="`Kelas ${g} SD`"></option>
+                                </template>
+                            </template>
+                            <template x-if="courseForm.jenjang === 'SMP'">
+                                <template x-for="g in ['7','8','9']">
+                                    <option :value="g" x-text="`Kelas ${g} SMP`"></option>
+                                </template>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Mata Pelajaran:</label>
+                        <input type="text" x-model="courseForm.mapel" placeholder="Contoh: Matematika" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-bold outline-none">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Nomor Urutan Tampil:</label>
+                        <input type="number" x-model.number="courseForm.sort_order" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-bold outline-none">
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Thumbnail Image URL:</label>
+                    <input type="text" x-model="courseForm.thumbnail_url" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-semibold outline-none">
+                </div>
+            </div>
+
+            <div class="mt-8 flex justify-end gap-3">
+                <button @click="showCourseModal = false" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition">Batal</button>
+                <button @click="saveCourse()" class="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition">Simpan Modul</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD / EDIT LESSON -->
+    <div x-show="showLessonModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" x-transition>
+        <div class="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto" @click.away="showLessonModal = false">
+            <button @click="showLessonModal = false" class="absolute top-6 right-6 text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
+            
+            <h3 class="text-xl font-bold font-outfit text-slate-800 mb-6" x-text="lessonForm.isEdit ? '⚙️ Edit Materi Pelajaran' : '➕ Tambah Materi Pelajaran'"></h3>
+            
+            <div class="space-y-4 text-left">
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">ID Materi (Kunci Unik):</label>
+                    <input type="text" x-model="lessonForm.id" :disabled="lessonForm.isEdit" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-mono outline-none disabled:opacity-50">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Judul Bab/Materi:</label>
+                    <input type="text" x-model="lessonForm.title" placeholder="Contoh: Menggambar Bentuk Kubus" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm font-semibold outline-none">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Deskripsi Ringkas:</label>
+                    <input type="text" x-model="lessonForm.description" placeholder="Penjelasan singkat materi ini..." class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-medium outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Jenis Video:</label>
+                        <select x-model="lessonForm.video_type" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-bold outline-none">
+                            <option value="youtube">YouTube Video</option>
+                            <option value="direct">Direct Video Link (MP4)</option>
+                            <option value="none">Tanpa Video</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Nomor Urut Materi:</label>
+                        <input type="number" x-model.number="lessonForm.sort_order" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-bold outline-none">
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Video URL:</label>
+                    <input type="text" x-model="lessonForm.video_url" placeholder="Contoh: https://www.youtube.com/watch?v=NfUUlNsZBT8" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-medium outline-none">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Ringkasan Teks Materi:</label>
+                    <textarea x-model="lessonForm.materi_text" rows="4" placeholder="Tuliskan rangkuman materi pelajaran yang lengkap agar siswa dapat membaca penjelasannya secara mendetail..." class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-medium outline-none"></textarea>
+                </div>
+            </div>
+
+            <div class="mt-8 flex justify-end gap-3">
+                <button @click="showLessonModal = false" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition">Batal</button>
+                <button @click="saveLesson()" class="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition">Simpan Materi</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

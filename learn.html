@@ -69,31 +69,47 @@
               } catch (e) {
                   // Local simulator fallback database
                   console.log('Loading local course details fallback...');
-                  const fallbacks = {
-                      'c-sd-01': {
-                          course: { id: 'c-sd-01', title: 'Pecahan dan Bangun Datar Dasar', description: 'Matematika SD Kelas 4-5 yang dikemas seru dengan cerita.' },
-                          lessons: [
-                              { id: 'l-sd-1', title: 'Pengenalan Pecahan Sederhana', content_markdown: 'Pecahan menggambarkan bagian dari keseluruhan. Mari kita belah pizza imajiner kita menjadi 4 bagian!', media_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80', media_type: 'video', sort_order: 1 },
-                              { id: 'l-sd-2', title: 'Mengenal Bangun Datar Segitiga & Persegi', content_markdown: 'Menghitung keliling dan luas bangun datar dasar dengan rumus yang menyenangkan.', media_url: '', media_type: 'pdf', sort_order: 2 }
-                          ]
-                      },
-                      'c-mat-01': {
-                          course: { id: 'c-mat-01', title: 'Trik Cepat Aljabar & Geometri', description: 'Rumus cepat aljabar dasar.' },
-                          lessons: [
-                              { id: 'l-mat-1', title: 'Konsep Dasar Aljabar Linear', content_markdown: 'Menemukan nilai X dan Y tanpa ribet menggunakan trik visual eliminasi kilat.', media_url: 'https://images.unsplash.com/photo-1453733190148-c44698c265f8?auto=format&fit=crop&w=800&q=80', media_type: 'video', sort_order: 1 }
-                          ]
-                      },
-                      'c-smp-01': {
-                          course: { id: 'c-smp-01', title: 'Sistem Organ Tubuh & Tata Surya', description: 'Memahami sains secara visual.' },
-                          lessons: [
-                              { id: 'l-smp-1', title: 'Sistem Tata Surya & Planet-Planet', content_markdown: 'Mempelajari 8 planet dalam tata surya kita, orbitnya, dan mengapa Pluto tidak lagi dikategorikan sebagai planet utama.', media_url: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=800&q=80', media_type: 'video', sort_order: 1 },
-                              { id: 'l-smp-2', title: 'Hukum Newton I, II, dan III', content_markdown: 'Bagaimana gaya mempengaruhi gerak benda? Mengapa ketika bus direm mendadak tubuh kita terdorong ke depan?', media_url: '', media_type: 'pdf', sort_order: 2 }
-                          ]
-                      }
-                  };
-                  const current = fallbacks[this.courseId] || fallbacks['c-sd-01'];
-                  this.course = current.course;
-                  this.lessons = current.lessons;
+                  const localCourses = JSON.parse(localStorage.getItem('bb_courses') || '[]');
+                  const localLessons = JSON.parse(localStorage.getItem('bb_lessons') || '[]');
+                  
+                  const foundCourse = localCourses.find(c => c.id === this.courseId);
+                  if (foundCourse) {
+                      this.course = foundCourse;
+                      this.lessons = localLessons.filter(l => l.course_id === this.courseId)
+                          .map(l => ({
+                              ...l,
+                              content_markdown: l.materi_text,
+                              media_type: l.video_type === 'none' ? 'pdf' : 'video',
+                              media_url: l.video_url
+                          }))
+                          .sort((a, b) => a.sort_order - b.sort_order);
+                  } else {
+                      const fallbacks = {
+                          'c-sd-01': {
+                              course: { id: 'c-sd-01', title: 'Pecahan dan Bangun Datar Dasar', description: 'Matematika SD Kelas 4-5 yang dikemas seru dengan cerita.' },
+                              lessons: [
+                                  { id: 'l-sd-1', title: 'Pengenalan Pecahan Sederhana', content_markdown: 'Pecahan menggambarkan bagian dari keseluruhan. Mari kita belah pizza imajiner kita menjadi 4 bagian!', media_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80', media_type: 'video', sort_order: 1 },
+                                  { id: 'l-sd-2', title: 'Mengenal Bangun Datar Segitiga & Persegi', content_markdown: 'Menghitung keliling dan luas bangun datar dasar dengan rumus yang menyenangkan.', media_url: '', media_type: 'pdf', sort_order: 2 }
+                              ]
+                          },
+                          'c-mat-01': {
+                              course: { id: 'c-mat-01', title: 'Trik Cepat Aljabar & Geometri', description: 'Rumus cepat aljabar dasar.' },
+                              lessons: [
+                                  { id: 'l-mat-1', title: 'Konsep Dasar Aljabar Linear', content_markdown: 'Menemukan nilai X dan Y tanpa ribet menggunakan trik visual eliminasi kilat.', media_url: 'https://images.unsplash.com/photo-1453733190148-c44698c265f8?auto=format&fit=crop&w=800&q=80', media_type: 'video', sort_order: 1 }
+                              ]
+                          },
+                          'c-smp-01': {
+                              course: { id: 'c-smp-01', title: 'Sistem Organ Tubuh & Tata Surya', description: 'Memahami sains secara visual.' },
+                              lessons: [
+                                  { id: 'l-smp-1', title: 'Sistem Tata Surya & Planet-Planet', content_markdown: 'Mempelajari 8 planet dalam tata surya kita, orbitnya, dan mengapa Pluto tidak lagi dikategorikan sebagai planet utama.', media_url: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=800&q=80', media_type: 'video', sort_order: 1 },
+                                  { id: 'l-smp-2', title: 'Hukum Newton I, II, dan III', content_markdown: 'Bagaimana gaya mempengaruhi gerak benda? Mengapa ketika bus direm mendadak tubuh kita terdorong ke depan?', media_url: '', media_type: 'pdf', sort_order: 2 }
+                              ]
+                          }
+                      };
+                      const current = fallbacks[this.courseId] || fallbacks['c-sd-01'];
+                      this.course = current.course;
+                      this.lessons = current.lessons;
+                  }
                   
                   // Read completed list from offline localStorage simulator
                   const offlineCompletions = JSON.parse(localStorage.getItem(`bb_completed_${this.courseId}`) || '[]');
@@ -139,6 +155,21 @@
 
           isCompleted(id) {
               return this.completedLessons.includes(id);
+          },
+
+          isYoutube(url) {
+              if (!url) return false;
+              return url.includes('youtube.com') || url.includes('youtu.be');
+          },
+
+          getYoutubeEmbedUrl(url) {
+              if (!url) return '';
+              let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+              let match = url.match(regExp);
+              if (match && match[2].length == 11) {
+                  return 'https://www.youtube.com/embed/' + match[2] + '?autoplay=0&rel=0';
+              }
+              return url;
           }
       }">
 
@@ -185,12 +216,30 @@
             <div class="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm">
                 <!-- If VIDEO -->
                 <template x-if="activeLesson.media_type === 'video'">
-                    <div class="aspect-video bg-slate-900 relative flex items-center justify-center overflow-hidden">
-                        <img :src="activeLesson.media_url" class="absolute inset-0 w-full h-full object-cover opacity-60">
-                        <!-- Play button overlay -->
-                        <div class="relative z-10 w-20 h-20 bg-indigo-600 text-white rounded-full flex items-center justify-center text-3xl shadow-xl shadow-indigo-500/40 cursor-pointer hover:scale-105 transition-all">
-                            ▶
-                        </div>
+                    <div class="aspect-video bg-slate-900 relative w-full h-full">
+                        <!-- If YouTube Video -->
+                        <template x-if="isYoutube(activeLesson.media_url)">
+                            <iframe class="w-full h-full" 
+                                    :src="getYoutubeEmbedUrl(activeLesson.media_url)" 
+                                    frameborder="0" 
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                                    allowfullscreen></iframe>
+                        </template>
+                        <!-- If Native MP4/WebM Direct Video -->
+                        <template x-if="!isYoutube(activeLesson.media_url) && activeLesson.media_url">
+                            <video :src="activeLesson.media_url" 
+                                   controls 
+                                   class="w-full h-full object-contain"
+                                   preload="metadata"></video>
+                        </template>
+                        <!-- Fallback empty/illustration if no URL is supplied -->
+                        <template x-if="!activeLesson.media_url">
+                            <div class="w-full h-full flex flex-col items-center justify-center p-8 text-white space-y-3 bg-gradient-to-tr from-slate-800 to-indigo-900">
+                                <span class="text-6xl animate-bounce-gentle inline-block">🎥</span>
+                                <h4 class="text-lg font-bold font-outfit">Video Penjelasan Segera Hadir</h4>
+                                <p class="text-xs text-indigo-200">Video tutorial pengerjaan sedang disiapkan oleh Tutor BintangBelajar.</p>
+                            </div>
+                        </template>
                     </div>
                 </template>
 

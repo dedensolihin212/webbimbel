@@ -94,6 +94,12 @@ document.addEventListener('alpine:init', () => {
             const user = offlineUsers.find(u => u.email === email);
             
             // Seed default users if none exist
+            if (!user && email === 'admin@bintangbelajar.com' && password === 'admin123') {
+                const seedAdmin = { id: 'usr-admin', name: 'Admin BintangBelajar', email: 'admin@bintangbelajar.com', grade_level: 'ADMIN', role: 'admin' };
+                this.setUser(seedAdmin, 'mock-jwt-token-admin');
+                Alpine.store('toast').success("Selamat datang, Administrator (Demo mode)!");
+                return { success: true };
+            }
             if (!user && email === 'budi@gmail.com' && password === 'budi123') {
                 const seedUser = { id: 'usr-budi', name: 'Budi Pratama', email: 'budi@gmail.com', grade_level: 'SD', role: 'student' };
                 this.setUser(seedUser, 'mock-jwt-token');

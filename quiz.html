@@ -68,43 +68,54 @@
               } catch (e) {
                   // Fallbacks simulation
                   console.log('Loading local quiz details fallback...');
-                  const fallbacks = {
-                      'l-cal-1': {
-                          id: 'q-cal-1',
-                          title: 'Kuis Seru Huruf Vokal',
-                          questions: [
-                              { question: 'Manakah di bawah ini yang merupakan huruf vokal?', options: ['B', 'C', 'A', 'D'], answer: 2 },
-                              { question: 'Hewan APEL diawali dengan huruf vokal apa?', options: ['I', 'E', 'O', 'A'], answer: 3 }
-                          ]
-                      },
-                      'l-sd-1': {
-                          id: 'q-sd-1',
-                          title: 'Uji Pemahaman Pecahan',
-                          questions: [
-                              { question: 'Jika sebuah lingkaran dibagi menjadi 4 bagian sama besar, dan 1 bagian diarsir, berapa pecahannya?', options: ['1/2', '1/4', '3/4', '4/1'], answer: 1 },
-                              { question: 'Pecahan 2/4 senilai dengan pecahan...', options: ['1/2', '1/3', '3/4', '2/5'], answer: 0 }
-                          ]
-                      },
-                      'l-mat-1': {
-                          id: 'q-mat-1',
-                          title: 'Kuis Aljabar Kilat',
-                          questions: [
-                              { question: 'Jika 3x + 5 = 20, berapakah nilai x?', options: ['3', '4', '5', '6'], answer: 2 },
-                              { question: 'Jika x + y = 10 dan x - y = 2, berapakah nilai x?', options: ['4', '5', '6', '8'], answer: 2 }
-                          ]
-                      },
-                      'l-smp-1': {
-                          id: 'q-smp-1',
-                          title: 'Kuis Tata Surya Terluas',
-                          questions: [
-                              { question: 'Manakah planet terbesar dalam tata surya kita?', options: ['Bumi', 'Mars', 'Jupiter', 'Saturnus'], answer: 2 },
-                              { question: 'Planet yang dijuluki sebagai Planet Merah adalah...', options: ['Venus', 'Mars', 'Merkurius', 'Neptunus'], answer: 1 }
-                          ]
-                      }
-                  };
-                  const current = fallbacks[this.lessonId] || fallbacks['l-sd-1'];
-                  this.quiz = current;
-                  this.questions = current.questions;
+                  const localQuizzes = JSON.parse(localStorage.getItem('bb_quizzes') || '[]');
+                  const foundQuiz = localQuizzes.find(q => q.lesson_id === this.lessonId);
+                  
+                  if (foundQuiz) {
+                      this.quiz = {
+                          id: foundQuiz.id,
+                          title: foundQuiz.title
+                      };
+                      this.questions = JSON.parse(foundQuiz.questions_json);
+                  } else {
+                      const fallbacks = {
+                          'l-cal-1': {
+                              id: 'q-cal-1',
+                              title: 'Kuis Seru Huruf Vokal',
+                              questions: [
+                                  { question: 'Manakah di bawah ini yang merupakan huruf vokal?', options: ['B', 'C', 'A', 'D'], answer: 2 },
+                                  { question: 'Hewan APEL diawali dengan huruf vokal apa?', options: ['I', 'E', 'O', 'A'], answer: 3 }
+                              ]
+                          },
+                          'l-sd-1': {
+                              id: 'q-sd-1',
+                              title: 'Uji Pemahaman Pecahan',
+                              questions: [
+                                  { question: 'Jika sebuah lingkaran dibagi menjadi 4 bagian sama besar, dan 1 bagian diarsir, berapa pecahannya?', options: ['1/2', '1/4', '3/4', '4/1'], answer: 1 },
+                                  { question: 'Pecahan 2/4 senilai dengan pecahan...', options: ['1/2', '1/3', '3/4', '2/5'], answer: 0 }
+                              ]
+                          },
+                          'l-mat-1': {
+                              id: 'q-mat-1',
+                              title: 'Kuis Aljabar Kilat',
+                              questions: [
+                                  { question: 'Jika 3x + 5 = 20, berapakah nilai x?', options: ['3', '4', '5', '6'], answer: 2 },
+                                  { question: 'Jika x + y = 10 dan x - y = 2, berapakah nilai x?', options: ['4', '5', '6', '8'], answer: 2 }
+                              ]
+                          },
+                          'l-smp-1': {
+                              id: 'q-smp-1',
+                              title: 'Kuis Tata Surya Terluas',
+                              questions: [
+                                  { question: 'Manakah planet terbesar dalam tata surya kita?', options: ['Bumi', 'Mars', 'Jupiter', 'Saturnus'], answer: 2 },
+                                  { question: 'Planet yang dijuluki sebagai Planet Merah adalah...', options: ['Venus', 'Mars', 'Merkurius', 'Neptunus'], answer: 1 }
+                              ]
+                          }
+                      };
+                      const current = fallbacks[this.lessonId] || fallbacks['l-sd-1'];
+                      this.quiz = current;
+                      this.questions = current.questions;
+                  }
               } finally {
                   this.loading = false;
               }

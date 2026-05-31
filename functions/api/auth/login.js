@@ -35,6 +35,14 @@ export async function onRequestPost(context) {
         const db = env.DB;
         if (!db) {
             // Simulated fallback for testing when D1 is offline
+            if (email === "admin@bintangbelajar.com" && password === "admin123") {
+                const mockUser = { id: "usr-admin", name: "Admin BintangBelajar", email: "admin@bintangbelajar.com", grade_level: "ADMIN", role: "admin" };
+                const token = generateToken(mockUser);
+                return new Response(JSON.stringify({ success: true, user: mockUser, token }), {
+                    status: 200,
+                    headers: { "Content-Type": "application/json" }
+                });
+            }
             if (email === "budi@gmail.com" && password === "budi123") {
                 const mockUser = { id: "usr-budi", name: "Budi Pratama", email: "budi@gmail.com", grade_level: "SD", role: "student" };
                 const token = generateToken(mockUser);
