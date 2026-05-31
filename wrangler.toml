@@ -5,6 +5,10 @@ compatibility_date = "2026-05-31"
 [vars]
 JWT_SECRET = "super-secret-jwt-key-change-in-production"
 
+# Assets Block for Pages Deployment
+[assets]
+directory = "./"
+
 # D1 Database Binding
 [[d1_databases]]
 binding = "DB"
