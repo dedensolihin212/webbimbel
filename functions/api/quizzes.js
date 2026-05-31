@@ -3,36 +3,80 @@
 // ==========================================
 
 const mockQuizzes = {
-    'l-cal-1': {
-        id: 'q-cal-1',
-        title: 'Kuis Seru Huruf Vokal',
+    'l-membaca-1': {
+        id: 'q-membaca-1',
+        title: 'Kuis Detektif Huruf Vokal',
         questions: [
             { question: "Manakah di bawah ini yang merupakan huruf vokal?", options: ["B", "C", "A", "D"], answer: 2 },
-            { question: "Hewan APEL diawali dengan huruf vokal apa?", options: ["I", "E", "O", "A"], answer: 3 }
+            { question: "Gambar APEL diawali dengan huruf vokal apa?", options: ["I", "E", "O", "A"], answer: 3 },
+            { question: "Kata IKAN memiliki huruf vokal pertama yaitu?", options: ["I", "U", "E", "O"], answer: 0 }
         ]
     },
-    'l-sd-1': {
-        id: 'q-sd-1',
-        title: 'Uji Pemahaman Pecahan',
+    'l-membaca-2': {
+        id: 'q-membaca-2',
+        title: 'Kuis Ekspedisi Suku Kata',
         questions: [
-            { question: "Jika sebuah lingkaran dibagi menjadi 4 bagian sama besar, dan 1 bagian diarsir, berapa pecahannya?", options: ["1/2", "1/4", "3/4", "4/1"], answer: 1 },
-            { question: "Pecahan 2/4 senilai dengan pecahan...", options: ["1/2", "1/3", "3/4", "2/5"], answer: 0 }
+            { question: "Jika kita menggabungkan BO dan LA, maka akan menjadi kata?", options: ["BOLA ⚽", "BOBI 🐶", "BALON 🎈", "BOLU 🍰"], answer: 0 },
+            { question: "Benda BUKU 📖 terbentuk dari suku kata?", options: ["BU + KA", "BU + KU", "BA + KU", "BI + KI"], answer: 1 },
+            { question: "Suku kata yang hilang pada TO + ... = TOPI 🧢 adalah?", options: ["PA", "PE", "PI", "PU"], answer: 2 }
         ]
     },
-    'l-mat-1': {
-        id: 'q-mat-1',
-        title: 'Kuis Aljabar Kilat',
+    'l-membaca-3': {
+        id: 'q-membaca-3',
+        title: 'Kuis Detektif Kalimat Rahasia',
         questions: [
-            { question: "Jika 3x + 5 = 20, berapakah nilai x?", options: ["3", "4", "5", "6"], answer: 2 },
-            { question: "Jika x + y = 10 dan x - y = 2, berapakah nilai x?", options: ["4", "5", "6", "8"], answer: 2 }
+            { question: "Susun huruf acak ini menjadi nama hewan pemakan pisang: K - E - N - A - G - O", options: ["KUCING", "KELINCI", "MONYET", "KANGURU"], answer: 2 },
+            { question: "Baca kalimat ini: \"Kucing hitam itu melompat tinggi.\" Siapakah yang melompat tinggi?", options: ["Kucing hitam", "Kucing putih", "Anjing hitam", "Kelinci melompat"], answer: 0 },
+            { question: "Lengkapi kalimat ini: \"Adik minum ... hangat di pagi hari.\"", options: ["Nasi", "Susu 🥛", "Buku", "Mainan"], answer: 1 }
         ]
     },
-    'l-smp-1': {
-        id: 'q-smp-1',
-        title: 'Kuis Tata Surya Terluas',
+    'l-menulis-1': {
+        id: 'q-menulis-1',
+        title: 'Kuis Garis Ajaib & Bentuk',
         questions: [
-            { question: "Manakah planet terbesar dalam tata surya kita?", options: ["Bumi", "Mars", "Jupiter", "Saturnus"], answer: 2 },
-            { question: "Planet yang dijuluki sebagai Planet Merah adalah...", options: ["Venus", "Mars", "Merkurius", "Neptunus"], answer: 1 }
+            { question: "Bentuk apakah yang mirip dengan buah apel merah?", options: ["Segitiga", "Lingkaran 🔴", "Kotak", "Garis Lurus"], answer: 1 },
+            { question: "Garis yang naik turun seperti puncak gunung dinamakan garis...", options: ["Lurus", "Melingkar", "Zig-zag ⛰️", "Tebal"], answer: 2 }
+        ]
+    },
+    'l-menulis-2': {
+        id: 'q-menulis-2',
+        title: 'Kuis Lukisan Angka Cantik',
+        questions: [
+            { question: "Angka berapakah yang bentuknya mirip dengan leher bebek berenang?", options: ["Angka 1", "Angka 2 🦆", "Angka 3", "Angka 4"], answer: 1 },
+            { question: "Berapa jumlah garis tegak lurus yang dibutuhkan untuk menulis angka 1?", options: ["1 garis 📏", "2 garis", "3 garis", "Tidak ada"], answer: 0 }
+        ]
+    },
+    'l-menulis-3': {
+        id: 'q-menulis-3',
+        title: 'Kuis Ukiran Nama & Huruf',
+        questions: [
+            { question: "Huruf pertama saat kita ingin menulis kata \"MATA\" adalah...", options: ["N", "M", "W", "A"], answer: 1 },
+            { question: "Manakah penulisan kata \"IBU\" yang benar?", options: ["U-B-I", "I-B-U 👩", "B-I-U", "I-U-B"], answer: 1 }
+        ]
+    },
+    'l-berhitung-1': {
+        id: 'q-berhitung-1',
+        title: 'Kuis Berhitung Apel Merah',
+        questions: [
+            { question: "Ada 3 apel di atas meja, lalu ibu meletakkan 1 apel lagi. Berapa jumlah semua apel?", options: ["3 apel", "4 apel 🍎", "5 apel", "2 apel"], answer: 1 },
+            { question: "Jika di keranjang ada 5 buah apel merah dan kita ambil 2, ada berapa apel tersisa di keranjang?", options: ["1 apel", "2 apel", "3 apel 🍎", "4 apel"], answer: 2 }
+        ]
+    },
+    'l-berhitung-2': {
+        id: 'q-berhitung-2',
+        title: 'Kuis Pesta Penjumlahan',
+        questions: [
+            { question: "3 Stroberi 🍓 + 4 Jeruk 🍊 sama dengan berapa buah keseluruhan?", options: ["5 buah", "6 buah", "7 buah 🌟", "8 buah"], answer: 2 },
+            { question: "2 Pisang 🍌 + 2 Pisang 🍌 sama dengan...", options: ["4 Pisang 🍌", "3 Pisang", "5 Pisang", "6 Pisang"], answer: 0 }
+        ]
+    },
+    'l-berhitung-3': {
+        id: 'q-berhitung-3',
+        title: 'Kuis Timbangan & Balon Misterius',
+        questions: [
+            { question: "Ada 6 balon terbang 🎈. Tiba-tiba ada 3 balon meletus 💥. Berapa balon yang masih terbang indah?", options: ["2 balon", "3 balon 🎈", "4 balon", "5 balon"], answer: 1 },
+            { question: "Di piring ada 8 biskuit 🍪. Dodi memakan 4 biskuit. Kemudian adik memakan 2 biskuit. Berapa biskuit tersisa?", options: ["2 biskuit 🍪", "4 biskuit", "1 biskuit", "Tidak ada biskuit"], answer: 0 },
+            { question: "Jika 1 apel beratnya sama dengan 2 stroberi, maka 2 apel beratnya sama dengan berapa stroberi?", options: ["2 stroberi", "3 stroberi", "4 stroberi 🍓", "5 stroberi"], answer: 2 }
         ]
     }
 };

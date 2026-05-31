@@ -5,55 +5,46 @@
 // Mock fallbacks for standalone/offline HTML demo execution
 const mockCourses = [
     {
-        id: 'c-cal-01',
-        title: 'Belajar Membaca & Menulis Ceria',
-        description: 'Modul interaktif Calistung untuk mempersiapkan adik-adik TK masuk sekolah dasar dengan metode visual & audio.',
-        category: 'Calistung',
-        difficulty_level: 'Easy',
+        id: 'c-membaca',
+        title: 'Pintar Membaca & Mengeja',
+        description: 'Petualangan seru mengenal huruf vokal, suku kata bergambar, hingga membaca kalimat rahasia.',
+        category: 'Membaca',
+        difficulty_level: 'Level 1-3',
         thumbnail_url: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=400&q=80'
     },
     {
-        id: 'c-sd-01',
-        title: 'Pecahan dan Bangun Datar Dasar',
-        description: 'Pelajaran Matematika SD Kelas 4-5 yang dikemas seru dengan cerita dan kuis interaktif.',
-        category: 'SD',
-        difficulty_level: 'Medium',
+        id: 'c-menulis',
+        title: 'Jago Menulis & Menggambar',
+        description: 'Melatih kelenturan motorik dengan pola garis ajaib, menulis angka cantik, serta ukiran huruf alfabet.',
+        category: 'Menulis',
+        difficulty_level: 'Level 1-3',
         thumbnail_url: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=400&q=80'
     },
     {
-        id: 'c-mat-01',
-        title: 'Trik Cepat Aljabar & Geometri',
-        description: 'Rumus cepat dan trik menyelesaikan soal-soal matematika tersulit sekalipun.',
-        category: 'Matematika',
-        difficulty_level: 'Hard',
+        id: 'c-berhitung',
+        title: 'Cerdas Berhitung Kreatif',
+        description: 'Bermain menghitung apel manis, pesta penjumlahan buah tropis, dan teka-teki logika timbangan bergambar.',
+        category: 'Berhitung',
+        difficulty_level: 'Level 1-3',
         thumbnail_url: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=400&q=80'
-    },
-    {
-        id: 'c-smp-01',
-        title: 'Sistem Organ Tubuh & Tata Surya',
-        description: 'Memahami materi Biologi dan Fisika SMP secara visual lengkap dengan simulasi sederhana.',
-        category: 'IPA SMP',
-        difficulty_level: 'Medium',
-        thumbnail_url: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=400&q=80'
     }
 ];
 
 const mockLessons = {
-    'c-cal-01': [
-        { id: 'l-cal-1', title: 'Mengenal Huruf Vokal (A, I, U, E, O)', content_markdown: 'Ayo adik-adik, mari kita sebutkan dan tulis huruf vokal bersama-sama! Klik huruf untuk mendengar suaranya.', media_url: '', media_type: 'interactive', sort_order: 1 },
-        { id: 'l-cal-2', title: 'Latihan Menulis Angka 1 sampai 5', content_markdown: 'Pegang pensilmu (atau jarimu di layar) dan ikuti garis putus-putus untuk menulis angka 1-5!', media_url: '', media_type: 'interactive', sort_order: 2 },
-        { id: 'l-cal-3', title: 'Kuis Menghitung Buah Apel', content_markdown: 'Mari berhitung! Berapa jumlah apel merah yang ada di keranjang?', media_url: '', media_type: 'interactive', sort_order: 3 }
+    'c-membaca': [
+        { id: 'l-membaca-1', title: 'Detektif Huruf Vokal (A, I, U, E, O) - Level 1 (Mudah)', content_markdown: 'Huruf vokal terdiri dari: A (Apel 🍎), I (Ikan 🐟), U (Ular 🐍), E (Ember 🪣), O (Obor 🪵). Klik huruf-huruf tersebut untuk mendengar pelafalan cara membacanya!', media_url: 'https://www.youtube.com/watch?v=NfUUlNsZBT8', media_type: 'video', sort_order: 1 },
+        { id: 'l-membaca-2', title: 'Ekspedisi Menyambung Suku Kata - Level 2 (Sedang)', content_markdown: 'Gabungan suku kata menghasilkan kata yang bermakna! Contoh: BO + LA = BOLA ⚽, BU + KU = BUKU 📖, TO + PI = TOPI 🧢.', media_url: 'https://www.youtube.com/watch?v=kYvH5tZ4mS0', media_type: 'video', sort_order: 2 },
+        { id: 'l-membaca-3', title: 'Detektif Kata & Kalimat Rahasia - Level 3 (Tantangan)', content_markdown: 'Belajar membaca kalimat utuh secara perlahan. Contoh: "Budi suka membaca buku cerita di pagi hari bersama Ayah."', media_url: 'https://www.youtube.com/watch?v=gTdfLle1sCs', media_type: 'video', sort_order: 3 }
     ],
-    'c-sd-01': [
-        { id: 'l-sd-1', title: 'Pengenalan Pecahan Sederhana', content_markdown: 'Pecahan menggambarkan bagian dari keseluruhan. Mari kita belah pizza imajiner kita menjadi 4 bagian!', media_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=400&q=80', media_type: 'video', sort_order: 1 },
-        { id: 'l-sd-2', title: 'Mengenal Bangun Datar Segitiga & Persegi', content_markdown: 'Menghitung keliling dan luas bangun datar dasar dengan rumus yang menyenangkan.', media_url: '', media_type: 'pdf', sort_order: 2 }
+    'c-menulis': [
+        { id: 'l-menulis-1', title: 'Petualangan Garis Ajaib & Bentuk - Level 1 (Mudah)', content_markdown: 'Latihlah tanganmu mengikuti pola garis zig-zag, garis melengkung seperti ombak, dan lingkaran bulat seperti balon gas.', media_url: 'https://www.youtube.com/watch?v=q6XWwF0P8F8', media_type: 'video', sort_order: 1 },
+        { id: 'l-menulis-2', title: 'Lukisan Angka Cantik 1-10 - Level 2 (Sedang)', content_markdown: 'Angka 1 tegak seperti tiang, angka 2 meliuk seperti leher bebek berenang, angka 3 melengkung seperti sayap kupu-kupu.', media_url: 'https://www.youtube.com/watch?v=9_6Uu6_j3wU', media_type: 'video', sort_order: 2 },
+        { id: 'l-menulis-3', title: 'Ukiran Nama & Kata Istimewa - Level 3 (Tantangan)', content_markdown: 'Tantangan menulis huruf kapital dan huruf kecil A-Z secara proporsional menggunakan jarimu di layar handphone atau tablet!', media_url: 'https://www.youtube.com/watch?v=5Xy5O_p4Lzo', media_type: 'video', sort_order: 3 }
     ],
-    'c-mat-01': [
-        { id: 'l-mat-1', title: 'Konsep Dasar Aljabar Linear', content_markdown: 'Menemukan nilai X dan Y tanpa ribet menggunakan trik visual eliminasi kilat.', media_url: 'https://images.unsplash.com/photo-1453733190148-c44698c265f8?auto=format&fit=crop&w=400&q=80', media_type: 'video', sort_order: 1 }
-    ],
-    'c-smp-01': [
-        { id: 'l-smp-1', title: 'Sistem Tata Surya & Planet-Planet', content_markdown: 'Mempelajari 8 planet dalam tata surya kita, orbitnya, dan mengapa Pluto tidak lagi dikategorikan sebagai planet utama.', media_url: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=400&q=80', media_type: 'video', sort_order: 1 },
-        { id: 'l-smp-2', title: 'Hukum Newton I, II, dan III', content_markdown: 'Bagaimana gaya mempengaruhi gerak benda? Mengapa ketika bus direm mendadak tubuh kita terdorong ke depan?', media_url: '', media_type: 'pdf', sort_order: 2 }
+    'c-berhitung': [
+        { id: 'l-berhitung-1', title: 'Berhitung Apel Merah Lezat - Level 1 (Mudah)', content_markdown: 'Hitunglah gambar buah apel satu per satu secara visual: satu, dua, tiga, empat, lima!', media_url: 'https://www.youtube.com/watch?v=12t7E5uNeyM', media_type: 'video', sort_order: 1 },
+        { id: 'l-berhitung-2', title: 'Pesta Penjumlahan Buah Tropis - Level 2 (Sedang)', content_markdown: 'Penjumlahan menggabungkan dua kelompok benda menjadi satu kesatuan. Contoh: 3 Apel 🍎 + 2 Pisang 🍌 = 5 Buah keseluruhan.', media_url: 'https://www.youtube.com/watch?v=Vl03qZ-B7Yg', media_type: 'video', sort_order: 2 },
+        { id: 'l-berhitung-3', title: 'Teka-Teki Timbangan & Balon - Level 3 (Tantangan)', content_markdown: 'Tantangan pengurangan dan logika timbangan. Jika ada 5 balon, lalu 2 balon meletus, berapakah balon yang masih utuh?', media_url: 'https://www.youtube.com/watch?v=kYvH5tZ4mS0', media_type: 'video', sort_order: 3 }
     ]
 };
 

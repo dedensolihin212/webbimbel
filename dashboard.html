@@ -55,7 +55,10 @@
                   const res = await fetch('/api/courses', { headers });
                   const data = await res.json();
                   if (data.success) {
-                      this.courses = data.courses;
+                      this.courses = data.courses.map(c => ({
+                          ...c,
+                          category: c.mapel
+                      }));
                   }
               } catch (e) {
                   // Standard offline simulator fallback
@@ -64,15 +67,14 @@
                   if (localCourses.length > 0) {
                       this.courses = localCourses.map(c => ({
                           ...c,
-                          category: c.jenjang === 'TK' ? 'Calistung' : (c.jenjang === 'SD' ? 'SD' : (c.jenjang === 'SMP' ? (c.mapel.toLowerCase().includes('ipa') ? 'IPA SMP' : 'Matematika') : c.jenjang))
+                          category: c.mapel
                       }));
                   } else {
                       // Seeding default courses if none exist in localStorage
                       const defaultCourses = [
-                          { id: 'c-cal-01', title: 'Belajar Membaca & Menulis Ceria', description: 'Modul Calistung interaktif untuk adik-adik TK.', category: 'Calistung', difficulty_level: 'Easy', thumbnail_url: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=400&q=80' },
-                          { id: 'c-sd-01', title: 'Pecahan dan Bangun Datar Dasar', description: 'Matematika SD dengan visual pecahan pizza.', category: 'SD', difficulty_level: 'Medium', thumbnail_url: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=400&q=80' },
-                          { id: 'c-mat-01', title: 'Trik Cepat Aljabar & Geometri', description: 'Trik kilat eliminasi linear dan aljabar dasar.', category: 'Matematika', difficulty_level: 'Hard', thumbnail_url: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=400&q=80' },
-                          { id: 'c-smp-01', title: 'Sistem Organ Tubuh & Tata Surya', description: 'Mempelajari 8 planet luar tata surya secara seru.', category: 'IPA SMP', difficulty_level: 'Medium', thumbnail_url: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=400&q=80' }
+                          { id: 'c-membaca', title: 'Pintar Membaca & Mengeja', description: 'Petualangan seru mengenal huruf vokal, suku kata bergambar, hingga membaca kalimat rahasia.', category: 'Membaca', difficulty_level: 'Level 1-3', thumbnail_url: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=400&q=80' },
+                          { id: 'c-menulis', title: 'Jago Menulis & Menggambar', description: 'Melatih kelenturan motorik dengan pola garis ajaib, menulis angka cantik, serta ukiran huruf alfabet.', category: 'Menulis', difficulty_level: 'Level 1-3', thumbnail_url: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=400&q=80' },
+                          { id: 'c-berhitung', title: 'Cerdas Berhitung Kreatif', description: 'Bermain menghitung apel manis, pesta penjumlahan buah tropis, dan teka-teki logika timbangan bergambar.', category: 'Berhitung', difficulty_level: 'Level 1-3', thumbnail_url: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=400&q=80' }
                       ];
                       this.courses = defaultCourses;
                   }
@@ -89,11 +91,7 @@
           },
 
           openCourse(course) {
-              if (course.category === 'Calistung') {
-                  window.location.href = `calistung.html?id=${course.id}`;
-              } else {
-                  window.location.href = `learn.html?id=${course.id}`;
-              }
+              window.location.href = `learn.html?id=${course.id}`;
           }
       }">
 
@@ -107,10 +105,10 @@
                     'bg-sky-50 text-sky-800 border-sky-200': toast.type === 'info',
                     'bg-amber-50 text-amber-800 border-amber-200': toast.type === 'warning'
                  }">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span x-text="toast.message"></span>
+                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                 </svg>
+                 <span x-text="toast.message"></span>
             </div>
         </template>
     </div>
@@ -148,9 +146,13 @@
         <!-- Welcome banner card -->
         <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 rounded-[2rem] p-8 md:p-12 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div class="absolute w-[300px] h-[300px] bg-white/10 rounded-full blur-3xl -top-10 -right-10"></div>
-            <div class="space-y-3 relative z-10">
+            <div class="space-y-4 relative z-10">
                 <h1 class="text-3xl md:text-4xl font-extrabold font-outfit">Halo, <span x-text="$store.auth.user ? $store.auth.user.name : 'Sahabat'"></span>! 👋</h1>
-                <p class="text-sm md:text-base text-indigo-100/90 max-w-lg">Selamat datang di kelas petualangan belajarmu hari ini. Pilih subjek yang ingin kamu pelajari di bawah dan mulailah bersenang-senang!</p>
+                <p class="text-sm md:text-base text-indigo-100/90 max-w-lg">Selamat datang di kelas petualangan belajarmu hari ini. Ikuti jalur belajar terstruktur atau asah kreativitasmu di papan bermain gratis!</p>
+                
+                <a href="calistung.html" class="inline-flex items-center gap-2 px-6 py-3 bg-white text-indigo-700 font-extrabold text-sm rounded-2xl shadow-lg hover:shadow-xl hover:scale-102 transition transform">
+                    👶 Masuk Papan Bermain Calistung Ceria 🍎✏️📖
+                </a>
             </div>
             
             <div class="bg-white/10 backdrop-blur-md border border-white/20 p-5 rounded-2xl relative z-10 flex items-center gap-4 text-left">
@@ -165,11 +167,11 @@
         <!-- Filter Tab System -->
         <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
             <div class="flex flex-wrap gap-2">
-                <template x-for="cat in ['Semua', 'Calistung', 'SD', 'Matematika', 'IPA SMP']">
+                <template x-for="cat in ['Semua', 'Membaca', 'Menulis', 'Berhitung']">
                     <button @click="filterCategory = cat"
                             class="px-5 py-2.5 rounded-2xl text-sm font-bold transition-all"
                             :class="filterCategory === cat ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'">
-                        <span x-text="cat === 'Calistung' ? '👶 Calistung TK' : (cat === 'SD' ? '🎒 Mapel SD' : (cat === 'Matematika' ? '🧮 Matematika' : (cat === 'IPA SMP' ? '🔬 IPA SMP' : cat)))"></span>
+                        <span x-text="cat === 'Membaca' ? '📖 Membaca' : (cat === 'Menulis' ? '✏️ Menulis' : (cat === 'Berhitung' ? '🍎 Berhitung' : cat))"></span>
                     </button>
                 </template>
             </div>
@@ -203,10 +205,9 @@
                         <img :src="course.thumbnail_url" :alt="course.title" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                         <span class="absolute top-4 left-4 px-3 py-1.5 rounded-full text-[10px] font-bold text-white shadow-sm"
                               :class="{
-                                  'bg-amber-500': course.category === 'Calistung',
-                                  'bg-sky-500': course.category === 'SD',
-                                  'bg-violet-500': course.category === 'Matematika',
-                                  'bg-emerald-500': course.category === 'IPA SMP'
+                                  'bg-amber-500': course.category === 'Membaca',
+                                  'bg-indigo-500': course.category === 'Menulis',
+                                  'bg-emerald-500': course.category === 'Berhitung'
                               }" x-text="course.category"></span>
                     </div>
                     
